@@ -1,5 +1,5 @@
 import { config } from './config.js';
-import { slugify, ftsQuery } from './util.js';
+import { slugify, ftsQuery, keywords } from './util.js';
 import { classify, TOPICS } from './topics.js';
 
 const WANT_COLS = `w.id, w.slug, w.text, w.details, w.done_when, w.author, w.source, w.source_url, w.status,
@@ -151,15 +151,25 @@ export function createStore(db) {
       return db.prepare(`SELECT ${WANT_COLS} FROM ${from} WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT @limit OFFSET @offset`).all(params);
     },
 
+    // FTS finds candidates. A candidate counts as similar only when it shares at least two keywords
+    // (or all keywords of a short query), so that one common word is not enough.
     similarWants(text, { excludeId = 0, limit = 5 } = {}) {
       const fq = ftsQuery(text);
       if (!fq) return [];
+      const stem = (w) => w.replace(/(ing|s)$/, '');
+      const mine = new Set(keywords(text, 20).map(stem));
+      const need = Math.min(2, mine.size);
       return db
         .prepare(
           `SELECT ${WANT_COLS}, bm25(wants_fts) AS score FROM wants_fts f JOIN wants w ON w.id = f.rowid
-           WHERE wants_fts MATCH ? AND w.hidden = 0 AND w.id != ? ORDER BY score ASC LIMIT ?`,
+           WHERE wants_fts MATCH ? AND w.hidden = 0 AND w.id != ? ORDER BY score ASC LIMIT 40`,
         )
-        .all(fq, excludeId, limit);
+        .all(fq, excludeId)
+        .map((w) => ({ w, overlap: keywords(`${w.text} ${w.done_when}`, 30).map(stem).filter((k, i, a) => mine.has(k) && a.indexOf(k) === i).length }))
+        .filter((x) => x.overlap >= need)
+        .sort((a, b) => b.overlap - a.overlap || a.w.score - b.w.score)
+        .slice(0, limit)
+        .map((x) => x.w);
     },
 
     toggleMeToo(wantId, voter) {

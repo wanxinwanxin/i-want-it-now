@@ -345,3 +345,12 @@ test('migration strips the old attribution paragraph from details', async () => 
   const res = await fetch(`${base}/w/${id}/${store.getWant(id).slug}`);
   assert.match(await res.text(), /public Hacker News comment by x\./);
 });
+
+test('similar wants need two shared keywords', () => {
+  const a = store.createWant({ text: 'a wiki cycling map with safe bike routes', creator: 's1' }).id;
+  const b = store.createWant({ text: 'a cycling route planner that avoids busy roads for bike commuters', creator: 's2' }).id;
+  const c = store.createWant({ text: 'a browser extension that hides fake reviews on shopping sites', creator: 's3' }).id;
+  const ids = store.similarWants('a wiki cycling map where cyclists review routes', { excludeId: a }).map((w) => w.id);
+  assert.ok(ids.includes(b));
+  assert.ok(!ids.includes(c));
+});
