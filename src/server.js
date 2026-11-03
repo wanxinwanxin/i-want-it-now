@@ -75,7 +75,14 @@ export function createApp({ store }) {
   app.use((req, res, next) => {
     res.set('X-Content-Type-Options', 'nosniff');
     res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    if (!req.path.endsWith('/raw')) res.set('X-Frame-Options', 'SAMEORIGIN');
+    if (!req.path.endsWith('/raw')) {
+      res.set('X-Frame-Options', 'SAMEORIGIN');
+      // The site itself loads only its own script. Agent-made pages get their own policy on the /raw route.
+      res.set(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self'",
+      );
+    }
     next();
   });
 
