@@ -487,7 +487,7 @@ async function tick() {
     const { wants } = await api('GET', '/api/agent/queue?limit=1');
     if (!wants || !wants.length) return true;
     await work(wants[0], state);
-    return !args.has('--once');
+    return args.has('--once') ? false : 'busy';
   } catch (err) {
     log(`tick failed: ${err.message}`);
     return !args.has('--once');
@@ -519,6 +519,7 @@ if (threadArg > 0) {
 for (;;) {
   const keepGoing = await tick();
   if (!keepGoing || args.has('--once') || args.has('--scan')) break;
-  await new Promise((r) => setTimeout(r, CFG.pollSec * 1000));
+  // When the agent just finished a want, more wants can be in the queue, so it checks again soon.
+  await new Promise((r) => setTimeout(r, keepGoing === 'busy' ? 5000 : CFG.pollSec * 1000));
 }
 log('agent stop');

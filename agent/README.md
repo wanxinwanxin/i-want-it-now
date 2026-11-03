@@ -29,7 +29,7 @@ Set these variables to change the limits. The values below are the defaults.
 | `AGENT_BUILDS_PER_DAY` | 30 | Build steps for each day |
 | `AGENT_RESEARCH_PER_DAY` | 80 | Research steps for each day |
 | `AGENT_IMPORTS_PER_DAY` | 6 | Wants imported from Hacker News for each day |
-| `AGENT_POLL_SEC` | 60 | Wait time between two wants |
+| `AGENT_POLL_SEC` | 60 | Wait time when the queue is empty. After a want, the agent checks again in 5 seconds. |
 | `AGENT_SCAN_EVERY_MIN` | 90 | Wait time between two Hacker News scans |
 | `AGENT_MODEL_RESEARCH` | `sonnet` | Model for research |
 | `AGENT_MODEL_BUILD` | `opus` | Model for build and fix |
