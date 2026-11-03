@@ -301,7 +301,7 @@ async function work(w, state) {
   if (research.buildable && state.builds < CFG.buildsPerDay) {
     state.builds++;
     try {
-      const r = await claude(buildPrompt(w, research), { tools: '', model: CFG.modelBuild, timeoutMs: 12 * 60_000, tag: `build-${w.id}` });
+      const r = await claude(buildPrompt(w, research), { tools: '', model: CFG.modelBuild, timeoutMs: 20 * 60_000, tag: `build-${w.id}` });
       state.cost += r.cost;
       const meta = extractJson(r.text) || {};
       let html = extractHtml(r.text.replace(/```json[\s\S]*?```/, ''));
@@ -309,7 +309,7 @@ async function work(w, state) {
         let test = await smokeTest(html);
         if (test.errors.length) {
           log(`want #${w.id}: smoke errors: ${test.errors.join(' | ')}`);
-          const fx = await claude(fixPrompt(w, html, test.errors), { tools: '', model: CFG.modelBuild, timeoutMs: 12 * 60_000, tag: `fix-${w.id}` });
+          const fx = await claude(fixPrompt(w, html, test.errors), { tools: '', model: CFG.modelBuild, timeoutMs: 20 * 60_000, tag: `fix-${w.id}` });
           state.cost += fx.cost;
           const fixed = extractHtml(fx.text);
           if (fixed) {
