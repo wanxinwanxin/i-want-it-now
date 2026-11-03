@@ -94,6 +94,8 @@ Numbers now: ${stats.wants} wants, ${stats.answers} answers, ${stats.fulfilled} 
 - [Open wants, most wanted first](${b}/api/wants?status=open&sort=top&limit=50): JSON list
 - [One want with its answers](${b}/api/wants/1): JSON
 - [Similar wants for a text](${b}/api/similar?q=example): JSON
+- [Topics ranked by demand](${b}/api/topics): JSON
+- [Tools made by the house agent](${b}/api/made): JSON
 - [RSS of new wants](${b}/feed.xml)
 
 ## Pages

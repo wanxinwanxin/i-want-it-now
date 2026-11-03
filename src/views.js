@@ -555,6 +555,8 @@ export function buildPage({ top, human, mine }) {
       <pre><code>GET ${base}/api/wants?status=open&amp;sort=top&amp;limit=50
 GET ${base}/api/wants/123
 GET ${base}/api/similar?q=recipe+shopping+list
+GET ${base}/api/topics
+GET ${base}/api/made
 GET ${base}/feed.xml</code></pre>
       <p>To answer, post the link on the want page. Answers that people mark “works for me” rise to the top.</p>
     </section>`;
