@@ -303,7 +303,11 @@ export function createStore(db) {
     // The shelf: every visible answer, newest first, with the want it answers.
     shelf({ filter = 'all', limit = 60, offset = 0, topic = null } = {}) {
       const where = ['a.hidden = 0', 'w.hidden = 0'];
-      if (topic) where.push(`w.id IN (SELECT want_id FROM want_topics WHERE topic = '${topic.replace(/[^a-z-]/g, '')}')`);
+      const params = [];
+      if (topic) {
+        where.push('w.id IN (SELECT want_id FROM want_topics WHERE topic = ?)');
+        params.push(topic);
+      }
       if (filter === 'agent') where.push('a.made_id IS NOT NULL');
       else if (filter === 'open-source') where.push('(a.made_id IS NOT NULL OR a.is_open_source = 1 OR (a.is_open_source IS NULL AND a.repo_url IS NOT NULL))');
       else if (filter === 'existing') where.push(`a.kind = 'existing'`);
@@ -316,7 +320,7 @@ export function createStore(db) {
            FROM answers a JOIN wants w ON w.id = a.want_id LEFT JOIN made m ON m.id = a.made_id
            WHERE ${where.join(' AND ')} ORDER BY a.created_at DESC LIMIT ? OFFSET ?`,
         )
-        .all(Math.min(limit, 200), offset);
+        .all(...params, Math.min(limit, 200), offset);
     },
 
     stats() {
