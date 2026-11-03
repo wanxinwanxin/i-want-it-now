@@ -218,6 +218,13 @@ test('agent API: auth, queue, claim, result, made page sandbox', async () => {
   assert.equal(await res.text(), html);
   res = await fetch(`${base}/made/${r.made.slug}`);
   assert.match(await res.text(), /WebApplication/);
+
+  // A repository without an open-source license gets no "open source" tag.
+  const unlicensed = store.addAnswer({ want_id: id, kind: 'existing', title: 'NoLicense', url: 'https://nl.example.com', repo_url: 'https://github.com/x/nl', by_agent: true, is_open_source: false });
+  res = await fetch(`${base}/w/${id}/${w.slug}`);
+  const pageHtml = await res.text();
+  const card = pageHtml.slice(pageHtml.indexOf(`id="a${unlicensed}"`), pageHtml.indexOf('</article>', pageHtml.indexOf(`id="a${unlicensed}"`)));
+  assert.ok(!card.includes('open source'));
 });
 
 test('agent import dedupes by source URL', async () => {

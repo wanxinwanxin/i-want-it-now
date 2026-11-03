@@ -161,6 +161,11 @@ export function shelfCard(a) {
   </article>`;
 }
 
+// The explicit flag wins. A repository link alone counts only when nobody set the flag.
+function isOpenSource(a) {
+  return Boolean(a.made_slug) || a.is_open_source === 1 || (a.is_open_source == null && Boolean(a.repo_url));
+}
+
 function answerCard(a, w, { myVote = 0, isCreator = false } = {}) {
   const fit = w.fulfilled_answer_id === a.id;
   const href = answerLink(a);
@@ -176,7 +181,7 @@ function answerCard(a, w, { myVote = 0, isCreator = false } = {}) {
       ${a.repo_url ? html`<a class="btn small ghost" href="${a.repo_url}" rel="nofollow ugc noopener" target="_blank">Source code</a>` : ''}
       ${a.made_slug ? html`<a class="btn small ghost" href="/made/${a.made_slug}/source">Source code</a>` : ''}
       ${a.is_free ? html`<span class="tag">free</span>` : ''}
-      ${a.is_open_source || a.repo_url || a.made_slug ? html`<span class="tag">open source</span>` : ''}
+      ${isOpenSource(a) ? html`<span class="tag">open source</span>` : ''}
     </div>
     <div class="by">${a.by_agent ? 'by the house agent' : `by ${a.author || 'anonymous'}`} · <time datetime="${a.created_at}">${timeAgo(a.created_at)}</time></div>
     <div class="avotes">

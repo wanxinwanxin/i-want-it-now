@@ -280,7 +280,7 @@ export function createStore(db) {
     shelf({ filter = 'all', limit = 60, offset = 0 } = {}) {
       const where = ['a.hidden = 0', 'w.hidden = 0'];
       if (filter === 'agent') where.push('a.made_id IS NOT NULL');
-      else if (filter === 'open-source') where.push('(a.is_open_source = 1 OR a.repo_url IS NOT NULL)');
+      else if (filter === 'open-source') where.push('(a.made_id IS NOT NULL OR a.is_open_source = 1 OR (a.is_open_source IS NULL AND a.repo_url IS NOT NULL))');
       else if (filter === 'existing') where.push(`a.kind = 'existing'`);
       else if (filter === 'built') where.push(`a.kind = 'built'`);
       else if (filter === 'fits') where.push('w.fulfilled_answer_id = a.id');
