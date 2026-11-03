@@ -329,3 +329,10 @@ test('want feed lists answers', async () => {
   const res = await fetch(`${base}/w/${id}/feed.xml`);
   assert.match(await res.text(), /Answer: FeedThing/);
 });
+
+test('agent queue puts site wants before imported wants', () => {
+  store.db.prepare(`UPDATE wants SET agent_state = 'done'`).run();
+  store.createWant({ text: 'an imported want from hacker news', source: 'hn', source_url: 'https://news.ycombinator.com/item?id=999' });
+  const { id } = store.createWant({ text: 'a want from a real visitor on the site', creator: 'v' });
+  assert.equal(store.agentQueue(1)[0].id, id);
+});

@@ -384,12 +384,13 @@ export function createStore(db) {
     // ---- Agent queue ----
 
     agentQueue(limit = 3) {
+      // Wants posted on the site go first: their authors wait for an answer. Imported wants come after.
       // A "working" claim older than one hour is stale, so the agent can take it again.
       return db
         .prepare(
           `SELECT ${WANT_COLS} FROM wants w WHERE w.hidden = 0 AND (w.agent_state = 'pending'
              OR (w.agent_state = 'working' AND w.agent_at < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')))
-           ORDER BY w.me_too DESC, w.created_at ASC LIMIT ?`,
+           ORDER BY (w.source = 'site') DESC, w.me_too DESC, w.created_at ASC LIMIT ?`,
         )
         .all(Math.min(Number(limit) || 3, 20));
     },
