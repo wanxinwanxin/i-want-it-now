@@ -24,6 +24,7 @@ export function sitemapXml(rows) {
     { loc: '/made', pri: '0.8', freq: 'daily' },
     { loc: '/build', pri: '0.7', freq: 'daily' },
     { loc: '/topics', pri: '0.8', freq: 'daily' },
+    { loc: '/log', pri: '0.6', freq: 'hourly' },
     ...(rows.topics || []).map((t) => ({ loc: `/topics/${t}`, pri: '0.7', freq: 'daily' })),
     { loc: '/about', pri: '0.5', freq: 'weekly' },
     ...rows.wants.map((w) => ({ loc: wantUrl(w), lastmod: w.updated_at, pri: '0.6', freq: 'daily' })),

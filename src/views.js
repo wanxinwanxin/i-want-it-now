@@ -30,6 +30,31 @@ function cut(s, n) {
   return s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s;
 }
 
+// Prefilled share links. Each link adds ?ref=<channel>, so that the admin page counts visits from each channel.
+export function shareUrls(path, text) {
+  const u = (ref) => `${config.baseUrl}${path}${path.includes('?') ? '&' : '?'}ref=${ref}`;
+  const e = encodeURIComponent;
+  return {
+    x: `https://twitter.com/intent/tweet?text=${e(text)}&url=${e(u('share-x'))}`,
+    reddit: `https://www.reddit.com/submit?url=${e(u('share-reddit'))}&title=${e(text)}`,
+    hn: `https://news.ycombinator.com/submitlink?u=${e(u('share-hn'))}&t=${e(text.slice(0, 80))}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${e(u('share-linkedin'))}`,
+    plain: `${config.baseUrl}${path}`,
+  };
+}
+
+function shareRow(path, text, label = 'Share') {
+  const s = shareUrls(path, text);
+  return html`<div class="sharerow" aria-label="${label}">
+    <span class="sharelbl">${label}:</span>
+    <a href="${s.x}" target="_blank" rel="noopener">X</a>
+    <a href="${s.reddit}" target="_blank" rel="noopener">Reddit</a>
+    <a href="${s.hn}" target="_blank" rel="noopener">Hacker News</a>
+    <a href="${s.linkedin}" target="_blank" rel="noopener">LinkedIn</a>
+    <button class="linkish" data-share="${s.plain}" data-title="${text}">Copy link</button>
+  </div>`;
+}
+
 export function layout({ title, description, path = '/', body, jsonld = null, noindex = false, ogImage = null, wide = false }) {
   const fullTitle = title ? `${title} · ${SITE}` : `${SITE}: say exactly what you want, get it built`;
   const canonical = `${config.baseUrl}${path}`;
@@ -85,6 +110,7 @@ ${body}
   </div>
   <nav aria-label="Footer">
     <a href="/wants?sort=new">New wants</a>
+    <a href="/log">Build log</a>
     <a href="/topics">Topics</a>
     <a href="/mine">Your wants</a>
     <a href="/wants?status=fulfilled">Fulfilled</a>
@@ -206,14 +232,14 @@ function answerCard(a, w, { myVote = 0, isCreator = false } = {}) {
   </article>`;
 }
 
-function agentLine(agent) {
+function agentLine(agent, { logLink = true } = {}) {
   if (!agent) return '';
   const parts = [];
   if (agent.working) parts.push(html`<span class="dot live"></span> The agent is working on a want now`);
   else if (agent.last_at) parts.push(html`<span class="dot"></span> The agent answered a want ${timeAgo(agent.last_at)}`);
   if (agent.queued) parts.push(html`${plural(agent.queued, 'want')} in its queue`);
   if (!parts.length) return '';
-  return html`<p class="agentline">${parts.map((p, i) => html`${i ? ' · ' : ''}${p}`)}</p>`;
+  return html`<p class="agentline">${parts.map((p, i) => html`${i ? ' · ' : ''}${p}`)}${logLink ? html` · <a href="/log">Build log →</a>` : ''}</p>`;
 }
 
 export function homePage({ stats, agent, fresh, top, shelf, mine }) {
@@ -305,7 +331,10 @@ export function wantPage({ w, answers, myVotes, on, isCreator, related, created,
   })();
 
   const body = html`<article class="wantpage st-${w.status}">
-    ${created ? html`<div class="notice">Your want is live. Share the link, so that more people can say “me too”. The agent picks it up soon.</div>` : ''}
+    ${created
+      ? html`<div class="notice">Your want is live. The agent picks it up soon. Share it, so that more people can say “me too”.
+          ${shareRow(wantUrl(w), `I want ${w.text}. Anyone else?`, 'Share your want')}</div>`
+      : ''}
     <div class="crumbs"><a href="/wants">Wants</a> <span>/</span> #${w.id}</div>
     <div class="wanthead">
       ${meTooButton(w, on, true)}
@@ -325,11 +354,11 @@ export function wantPage({ w, answers, myVotes, on, isCreator, related, created,
     ${w.done_when ? html`<div class="donewhen"><b>It is done when</b> ${w.done_when}</div>` : ''}
     ${topics.length ? html`<div class="topicrow">${topics.map((t) => html`<a class="chip topic" href="/topics/${t}">${TOPIC_BY_SLUG.get(t)?.name || t}</a>`)}</div>` : ''}
     <div class="actions">
-      <button class="btn small ghost" data-share="${config.baseUrl}${wantUrl(w)}" data-title="${wantTitle(w)}">Share</button>
       <a class="btn small ghost" href="/w/${w.id}/feed.xml" title="Get new answers in your feed reader">Watch (RSS)</a>
       <a class="btn small ghost" href="/api/wants/${w.id}">JSON</a>
       <form method="post" action="/w/${w.id}/report" data-ajax="report" class="report"><button class="linkish">Report</button></form>
     </div>
+    ${created ? '' : shareRow(wantUrl(w), w.status === 'open' ? `Someone wants ${cut(w.text, 150)}. Can you build it?` : `I want ${cut(w.text, 150)}`)}
     ${fitAnswer ? html`<div class="fitbanner">✓ Fulfilled. The answer “${fitAnswer.title}” fits exactly.</div>` : ''}
     ${agentBox}
 
@@ -343,6 +372,11 @@ export function wantPage({ w, answers, myVotes, on, isCreator, related, created,
       <h2>Answer this want</h2>
       <p class="hint">Built it? Know a tool that already does it? Post the link. Free and open-source answers go on the shelf.</p>
       ${answerForm(w)}
+      <details class="badgebox">
+        <summary>Building this? Add a live badge to your README</summary>
+        <p><img src="/badge/w/${w.id}.svg" alt="I want it now badge" height="20"></p>
+        <pre><code>[![I want it now](${config.baseUrl}/badge/w/${w.id}.svg)](${config.baseUrl}${wantUrl(w)})</code></pre>
+      </details>
     </section>
 
     ${related.length ? html`<section class="related"><h2>Similar wants</h2>${wantList(related, new Set())}</section>` : ''}
@@ -502,6 +536,7 @@ export function madePage({ m }) {
         ${m.want_id ? html`<a class="btn small ghost" href="/w/${m.want_id}/${m.want_slug}#answers">Does it fit? Vote</a>` : ''}
       </div>
     </div>
+    ${shareRow(`/made/${m.slug}`, `${m.title}: a free tool an AI agent built because someone asked for it`)}
     <div class="frame">
       <iframe src="/made/${m.slug}/raw" title="${m.title}" sandbox="allow-scripts allow-forms allow-modals allow-downloads allow-popups" loading="lazy"></iframe>
     </div>
@@ -702,4 +737,105 @@ export function minePage({ created, metoo }) {
       ${wantList(metoo, new Set(metoo.map((w) => w.id)), 'Nothing yet.')}
     </section>`;
   return layout({ title: 'Your wants', path: '/mine', body, noindex: true });
+}
+
+// Group agent "found" events that belong to one want and one moment into one line.
+function groupEvents(events) {
+  const out = [];
+  for (const e of events) {
+    const prev = out[out.length - 1];
+    if (prev && e.kind === 'found' && prev.kind === 'found' && prev.want_id === e.want_id && prev.at.slice(0, 16) === e.at.slice(0, 16)) {
+      prev.titles.push(e.title);
+      continue;
+    }
+    out.push({ ...e, titles: e.title ? [e.title] : [] });
+  }
+  return out;
+}
+
+function dayLabel(iso, now = new Date()) {
+  const d = iso.slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+  const yesterday = new Date(now.getTime() - 864e5).toISOString().slice(0, 10);
+  if (d === today) return 'Today';
+  if (d === yesterday) return 'Yesterday';
+  return new Date(`${d}T12:00:00Z`).toUTCString().slice(0, 16);
+}
+
+function eventLine(e) {
+  const want = html`<a href="/w/${e.want_id}/${e.slug}">I want ${cut(e.text, 110)}</a>`;
+  switch (e.kind) {
+    case 'want':
+      return html`<span class="ev k-want">New want</span> ${want}${e.source === 'hn' ? html` <span class="muted">(from Hacker News)</span>` : ''}`;
+    case 'made':
+      return html`<span class="ev k-made">Agent built</span> <a href="/made/${e.made_slug}"><b>${e.title}</b></a> for ${want}`;
+    case 'found':
+      return html`<span class="ev k-found">Agent found</span> ${e.titles.join(', ')} for ${want}`;
+    case 'answer':
+      return html`<span class="ev k-answer">Builder answer</span> <b>${e.title}</b> by ${e.who || 'anonymous'} for ${want}`;
+    case 'fulfilled':
+      return html`<span class="ev k-fit">Fulfilled</span> ${want}`;
+    case 'needs_human':
+      return html`<span class="ev k-human">Needs a human</span> ${want}`;
+    default:
+      return '';
+  }
+}
+
+export function logPage({ events, agent }) {
+  const groups = [];
+  for (const e of groupEvents(events)) {
+    const label = dayLabel(e.at);
+    if (!groups.length || groups[groups.length - 1].label !== label) groups.push({ label, items: [] });
+    groups[groups.length - 1].items.push(e);
+  }
+  const body = html`<section class="listhead">
+      <h1>Build log</h1>
+      <p class="lede small">Everything that happens here, newest first: new wants, tools the agent built, tools it found, and answers from builders.</p>
+      ${agentLine(agent, { logLink: false })}
+    </section>
+    ${groups.length
+      ? groups.map(
+          (g) => html`<section class="logday"><h2>${g.label}</h2><ol class="log">${g.items.map(
+            (e) => html`<li><time datetime="${e.at}">${e.at.slice(11, 16)}</time><div>${eventLine(e)}</div></li>`,
+          )}</ol></section>`,
+        )
+      : html`<p class="empty">Nothing yet.</p>`}`;
+  return layout({ title: 'Build log', description: 'A live log of what people want and what an AI agent and builders made for them.', path: '/log', body });
+}
+
+export function launchPage({ stats, made, token, targets }) {
+  const base = config.baseUrl;
+  const e = encodeURIComponent;
+  const top = made.slice(0, 3);
+  const links = top.map((m) => `${base}/made/${m.slug}?ref=reddit-sideproject`).join('\n');
+  const hnTitle = 'Show HN: I Want It Now – post an exact want, an AI agent builds or finds it';
+  const hnUrl = `${base}/?ref=hn`;
+  const redditTitle = 'I built a site where you say exactly what you want, and an AI agent builds it (or finds it) within the hour';
+  const xText = `Building is cheap now. Knowing what to build is the hard part. So I made a board of exact wants: say "I want …" and an AI agent finds or builds it.${top[0] ? ` Example: ${top[0].title}.` : ''}`;
+  const check = (ok) => (ok ? '✓' : '·');
+  const body = html`<section class="prose admin">
+    <h1>Launch kit</h1>
+    <p>Post from your own accounts. Each link opens a prefilled form. Wait one day between channels, then read the referrers on <a href="/admin?token=${token}">the admin page</a>.</p>
+    <h2>Targets</h2>
+    <ul class="targets">
+      <li>${check(stats.answered >= targets.answered)} Answered wants: <b>${stats.answered}</b> of ${targets.answered}</li>
+      <li>${check(stats.made >= targets.made)} Agent-made tools: <b>${stats.made}</b> of ${targets.made}</li>
+      <li>${check(stats.fulfilled >= targets.fulfilled)} Fulfilled wants: <b>${stats.fulfilled}</b> of ${targets.fulfilled} (needs real wishers, so the first post asks for wants)</li>
+    </ul>
+    <h2>1. Show HN</h2>
+    <p><a class="btn small" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=${e(hnUrl)}&t=${e(hnTitle)}">Open prefilled HN form</a></p>
+    <p>Then post the text from <code>docs/CAMPAIGN.md</code> (Draft 1) as the first comment.</p>
+    <h2>2. Reddit r/SideProject</h2>
+    <p><a class="btn small" target="_blank" rel="noopener" href="https://www.reddit.com/r/SideProject/submit?url=${e(`${base}/?ref=reddit-sideproject`)}&title=${e(redditTitle)}">Open prefilled Reddit form</a></p>
+    <p>Tools to show in the comment:</p>
+    <pre><code>${links || 'No agent-made tools yet.'}</code></pre>
+    <h2>3. X</h2>
+    <p><a class="btn small" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=${e(xText)}&url=${e(`${base}/?ref=x`)}">Open prefilled post</a></p>
+    <h2>4. LinkedIn</h2>
+    <p><a class="btn small" target="_blank" rel="noopener" href="https://www.linkedin.com/sharing/share-offsite/?url=${e(`${base}/?ref=linkedin`)}">Open LinkedIn share</a></p>
+    <h2>Showcase</h2>
+    <ul>${made.map((m) => html`<li><a href="/made/${m.slug}">${m.title}</a>: ${m.summary}</li>`)}</ul>
+  </section>`;
+  return layout({ title: 'Launch kit', path: '/admin/launch', body, noindex: true });
 }

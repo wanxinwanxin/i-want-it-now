@@ -383,6 +383,29 @@ export function createStore(db) {
       return rows.length;
     },
 
+    // Events for the public build log, newest first.
+    activity(limit = 150) {
+      return db
+        .prepare(
+          `SELECT * FROM (
+             SELECT 'want' AS kind, w.id AS want_id, w.slug, w.text, w.source, NULL AS title, NULL AS made_slug, w.created_at AS at, w.author AS who
+               FROM wants w WHERE w.hidden = 0
+             UNION ALL
+             SELECT CASE WHEN a.made_id IS NOT NULL THEN 'made' WHEN a.by_agent = 1 THEN 'found' ELSE 'answer' END,
+                    w.id, w.slug, w.text, w.source, a.title, m.slug, a.created_at, a.author
+               FROM answers a JOIN wants w ON w.id = a.want_id LEFT JOIN made m ON m.id = a.made_id
+               WHERE a.hidden = 0 AND w.hidden = 0
+             UNION ALL
+             SELECT 'fulfilled', w.id, w.slug, w.text, w.source, NULL, NULL, w.fulfilled_at, NULL
+               FROM wants w WHERE w.hidden = 0 AND w.fulfilled_at IS NOT NULL
+             UNION ALL
+             SELECT 'needs_human', w.id, w.slug, w.text, w.source, NULL, NULL, w.agent_at, NULL
+               FROM wants w WHERE w.hidden = 0 AND w.agent_state = 'needs_human' AND w.agent_at IS NOT NULL
+           ) ORDER BY at DESC LIMIT ?`,
+        )
+        .all(limit);
+    },
+
     agentStats() {
       return db
         .prepare(

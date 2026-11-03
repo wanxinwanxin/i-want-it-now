@@ -354,3 +354,22 @@ test('similar wants need two shared keywords', () => {
   assert.ok(ids.includes(b));
   assert.ok(!ids.includes(c));
 });
+
+test('build log, badge, launch kit, share links', async () => {
+  let res = await fetch(base + '/log');
+  const log = await res.text();
+  assert.match(log, /Build log/);
+  assert.match(log, /Agent built/);
+  res = await fetch(base + '/api/log');
+  assert.ok((await res.json()).events.length > 0);
+  const { id } = store.createWant({ text: 'a badge test want <b>', creator: 'bt' });
+  res = await fetch(`${base}/badge/w/${id}.svg`);
+  assert.equal(res.headers.get('content-type'), 'image/svg+xml; charset=utf-8');
+  assert.match(await res.text(), /1 want · open/);
+  res = await fetch(base + '/admin/launch');
+  assert.equal(res.status, 404);
+  res = await fetch(base + '/admin/launch?token=admin-test-token');
+  assert.match(await res.text(), /news\.ycombinator\.com\/submitlink/);
+  res = await fetch(`${base}/w/${id}/${store.getWant(id).slug}`);
+  assert.match(await res.text(), /twitter\.com\/intent\/tweet/);
+});

@@ -63,6 +63,23 @@ function publicAnswer(a) {
   };
 }
 
+// Shields-style badge: "i want it now | 3 want · open". Widths are estimates for an 11px sans font.
+function badgeSvg(w) {
+  const left = 'i want it now';
+  const right = `${w.me_too} want · ${w.status}`;
+  const color = w.status === 'fulfilled' ? '#1a8a4a' : w.status === 'answered' ? '#2457d6' : '#d9480f';
+  const lw = Math.round(left.length * 6.3 + 14);
+  const rw = Math.round(right.length * 6.3 + 14);
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${lw + rw}" height="20" role="img" aria-label="${esc(left)}: ${esc(right)}">
+<title>${esc(left)}: ${esc(right)}</title>
+<clipPath id="r"><rect width="${lw + rw}" height="20" rx="3" fill="#fff"/></clipPath>
+<g clip-path="url(#r)"><rect width="${lw}" height="20" fill="#1b1a17"/><rect x="${lw}" width="${rw}" height="20" fill="${color}"/></g>
+<g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+<text x="${lw / 2}" y="14">${esc(left)}</text><text x="${lw + rw / 2}" y="14">${esc(right)}</text></g>
+</svg>`;
+}
+
 // A thumbnail is a base64 JPEG from the agent. Check the JPEG magic bytes and the size.
 function decodeThumb(b64) {
   if (typeof b64 !== 'string' || b64.length > 560_000) return null;
@@ -400,6 +417,15 @@ export function createApp({ store }) {
 
   app.get('/about', (req, res) => send(res, views.aboutPage({ stats: store.stats() })));
 
+  app.get('/log', (req, res) => send(res, views.logPage({ events: store.activity(150), agent: store.agentStats() })));
+
+  // A README badge for builders. It links back to the want, so it also gives the site backlinks.
+  app.get('/badge/w/:file', (req, res) => {
+    const w = store.getWant(Number(String(req.params.file).replace(/\.svg$/, '')));
+    if (!w || w.hidden) return res.status(404).type('text').send('Not found');
+    res.set('Cache-Control', 'public, max-age=600').type('image/svg+xml').send(badgeSvg(w));
+  });
+
   // ---------- Public JSON API ----------
 
   const cors = (req, res, next) => {
@@ -428,6 +454,7 @@ export function createApp({ store }) {
   });
 
   app.get('/api/stats', cors, (req, res) => res.json({ ...store.stats(), agent: store.agentStats() }));
+  app.get('/api/log', cors, (req, res) => res.json({ events: store.activity(Math.min(Number(req.query.limit) || 100, 500)) }));
   app.get('/api/made', cors, (req, res) =>
     res.json({
       made: store.listMade({ limit: 500 }).map((m) => ({
@@ -563,6 +590,12 @@ export function createApp({ store }) {
         answers: db.prepare(`SELECT * FROM answers ORDER BY id DESC LIMIT 60`).all(),
       }),
     );
+  });
+
+  app.get('/admin/launch', (req, res) => {
+    const token = String(req.query.token || '');
+    if (!adminOk(token)) return fail(req, res, 404, 'Not found.');
+    send(res, views.launchPage({ stats: store.stats(), made: store.listMade({ limit: 20 }), token, targets: { answered: 25, made: 8, fulfilled: 3 } }));
   });
 
   app.post('/admin/hide', smallBody, (req, res) => {
