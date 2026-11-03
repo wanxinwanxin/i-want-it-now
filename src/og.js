@@ -39,16 +39,20 @@ function wantSvg(w) {
   const lines = wrap(w.text, size, 1040, 5);
   const lineH = Math.round(size * 1.12);
   const startY = 210;
-  const status = w.status === 'fulfilled' ? '✓ Fulfilled' : w.status === 'answered' ? `${w.answer_count} answer${w.answer_count === 1 ? '' : 's'}` : 'Open: build it';
+  const status = w.status === 'fulfilled' ? 'Fulfilled' : w.status === 'answered' ? `${w.answer_count} answer${w.answer_count === 1 ? '' : 's'}` : 'Open: build it';
   const statusColor = w.status === 'fulfilled' ? '#1f9d55' : w.status === 'answered' ? '#2563eb' : '#ff5a1f';
+  // The font has no triangle glyph, so the SVG draws it. The pill width follows the text length.
+  const pill = `${w.me_too} want this`;
+  const pillW = Math.round(60 + 26 + pill.length * 13.5);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#fbf8f3"/>
   <rect x="0" y="0" width="1200" height="12" fill="#ff5a1f"/>
   <text x="80" y="140" font-family="Bricolage Grotesque" font-weight="800" font-size="44" fill="#ff5a1f">I want</text>
   ${lines.map((l, i) => `<text x="80" y="${startY + i * lineH}" font-family="Bricolage Grotesque" font-weight="800" font-size="${size}" fill="#1b1a17">${esc(l)}</text>`).join('\n  ')}
-  <rect x="80" y="512" rx="28" ry="28" width="${150 + String(w.me_too).length * 22}" height="56" fill="#1b1a17"/>
-  <text x="106" y="550" font-family="Bricolage Grotesque" font-weight="800" font-size="30" fill="#fbf8f3">▲ ${w.me_too} want this</text>
-  <text x="${270 + String(w.me_too).length * 22}" y="550" font-family="Bricolage Grotesque" font-weight="800" font-size="30" fill="${statusColor}">${esc(status)}</text>
+  <rect x="80" y="512" rx="28" ry="28" width="${pillW}" height="56" fill="#1b1a17"/>
+  <polygon points="104,548 116,528 128,548" fill="#ff5a1f"/>
+  <text x="140" y="550" font-family="Bricolage Grotesque" font-weight="800" font-size="30" fill="#fbf8f3">${esc(pill)}</text>
+  <text x="${80 + pillW + 28}" y="550" font-family="Bricolage Grotesque" font-weight="800" font-size="30" fill="${statusColor}">${esc(status)}</text>
   <text x="1120" y="550" text-anchor="end" font-family="Bricolage Grotesque" font-weight="800" font-size="34" fill="#1b1a17">i want it <tspan fill="#ff5a1f">now</tspan></text>
 </svg>`;
 }
