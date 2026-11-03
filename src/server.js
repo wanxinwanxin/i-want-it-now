@@ -233,7 +233,7 @@ export function createApp({ store }) {
     if (!w || w.hidden) return fail(req, res, 404, 'This want does not exist, or a moderator hid it.', '/wants');
     if (req.params.slug !== w.slug) return res.redirect(301, views.wantUrl(w));
     const answers = store.answersFor(id);
-    const related = store.similarWants(`${w.text} ${w.details}`, { excludeId: id, limit: 5 });
+    const related = store.similarWants(`${w.text} ${w.done_when}`, { excludeId: id, limit: 5 });
     send(
       res,
       views.wantPage({

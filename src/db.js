@@ -141,9 +141,12 @@ export function openDb(file) {
 }
 
 // Add columns that later versions need. Each step runs only when the column is missing.
-function migrate(db) {
+export function migrate(db) {
   const cols = (table) => new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));
   const made = cols('made');
   if (!made.has('thumb')) db.exec(`ALTER TABLE made ADD COLUMN thumb BLOB`);
   if (!made.has('howto')) db.exec(`ALTER TABLE made ADD COLUMN howto TEXT NOT NULL DEFAULT '[]'`);
+  // Early imports put an attribution paragraph in the details. The page now shows attribution from source_url.
+  db.exec(`UPDATE wants SET details = rtrim(substr(details, 1, instr(details, 'The agent found this want') - 1), char(10, 13, 32))
+    WHERE instr(details, 'The agent found this want') > 0`);
 }

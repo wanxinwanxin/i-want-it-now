@@ -403,7 +403,7 @@ async function scanHn(state) {
     try {
       const r = await api('POST', '/api/agent/wants', {
         text: p.want,
-        details: `${p.details || ''}\n\nThe agent found this want in a public Hacker News comment by ${c.author}. The link to the original comment is below.`.trim(),
+        details: p.details || '',
         done_when: p.done_when || '',
         author: `${c.author} (HN)`,
         source: 'hn',
@@ -448,7 +448,7 @@ async function importThread(id, state, maxImports) {
       try {
         const r = await api('POST', '/api/agent/wants', {
           text: p.want,
-          details: `${p.details || ''}\n\nThe agent found this want in a public Hacker News comment by ${c.author}, in the thread "${item.title}". The link to the original comment is below.`.trim(),
+          details: p.details || '',
           done_when: p.done_when || '',
           author: `${c.author} (HN)`,
           source: 'hn',

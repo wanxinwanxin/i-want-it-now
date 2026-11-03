@@ -232,6 +232,7 @@ input:focus, textarea:focus { border-color: var(--ink); outline: none; }
 .wanthead { display: grid; grid-template-columns: 78px 1fr; gap: 18px; align-items: start; }
 .wanthead h1 { font-size: clamp(26px, 4.4vw, 40px); margin-bottom: 8px; }
 .details { margin: 18px 0 0 96px; font-size: 17px; }
+.sourceline { margin: 10px 0 0 96px; color: var(--muted); font-size: 14px; }
 .donewhen { margin: 14px 0 0 96px; background: var(--surface); border: 1px dashed var(--ink); border-radius: 12px; padding: 12px 14px; }
 .donewhen b { color: var(--accent); margin-right: 4px; }
 .actions { display: flex; gap: 10px; align-items: center; margin: 18px 0 0 96px; flex-wrap: wrap; }
@@ -359,7 +360,7 @@ form.inline { display: inline; }
   .wantline { flex-direction: column; gap: 0; }
   .iwant { font-size: 24px; }
   .wantline textarea { font-size: 21px; min-height: 90px; }
-  .details, .donewhen, .actions, .topicrow { margin-left: 0; }
+  .details, .donewhen, .actions, .topicrow, .sourceline { margin-left: 0; }
   .topicgrid { grid-template-columns: 1fr; }
   .wanthead { grid-template-columns: 64px 1fr; gap: 12px; }
   .metoo.big .mt { width: 64px; }

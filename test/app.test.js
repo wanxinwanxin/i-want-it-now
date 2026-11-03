@@ -336,3 +336,12 @@ test('agent queue puts site wants before imported wants', () => {
   const { id } = store.createWant({ text: 'a want from a real visitor on the site', creator: 'v' });
   assert.equal(store.agentQueue(1)[0].id, id);
 });
+
+test('migration strips the old attribution paragraph from details', async () => {
+  const { id } = store.createWant({ text: 'an old import with attribution', details: 'Real context here.\n\nThe agent found this want in a public Hacker News comment by x. The link is below.', source: 'hn', source_url: 'https://news.ycombinator.com/item?id=4242', author: 'x (HN)' });
+  const { migrate } = await import('../src/db.js');
+  migrate(store.db);
+  assert.equal(store.getWant(id).details, 'Real context here.');
+  const res = await fetch(`${base}/w/${id}/${store.getWant(id).slug}`);
+  assert.match(await res.text(), /public Hacker News comment by x\./);
+});

@@ -319,6 +319,9 @@ export function wantPage({ w, answers, myVotes, on, isCreator, related, created,
       </div>
     </div>
     ${w.details ? html`<div class="details">${textBlock(w.details)}</div>` : ''}
+    ${w.source === 'hn' && w.source_url
+      ? html`<p class="sourceline">The agent found this want in a public Hacker News comment${w.author ? ` by ${w.author.replace(/ \(HN\)$/, '')}` : ''}. <a href="${w.source_url}" rel="nofollow noopener" target="_blank">Read the original comment ↗</a></p>`
+      : ''}
     ${w.done_when ? html`<div class="donewhen"><b>It is done when</b> ${w.done_when}</div>` : ''}
     ${topics.length ? html`<div class="topicrow">${topics.map((t) => html`<a class="chip topic" href="/topics/${t}">${TOPIC_BY_SLUG.get(t)?.name || t}</a>`)}</div>` : ''}
     <div class="actions">
