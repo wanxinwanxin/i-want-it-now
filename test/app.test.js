@@ -385,3 +385,18 @@ test('agent can replace the HTML of a made page', async () => {
   res = await fetch(`${base}/api/agent/made/${slug}/html`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ html }) });
   assert.equal(res.status, 401);
 });
+
+test('Stack Exchange imports keep source and attribution', async () => {
+  const auth = { authorization: 'Bearer agent-test-token', 'content-type': 'application/json' };
+  let res = await fetch(base + '/api/agent/wants', {
+    method: 'POST',
+    headers: auth,
+    body: JSON.stringify({ text: 'a lightweight FAQ engine with search and login-only editing', source: 'se', source_url: 'https://softwarerecs.stackexchange.com/questions/1/faq', author: 'Some Person (SE)' }),
+  });
+  const { id } = await res.json();
+  assert.equal(store.getWant(id).source, 'se');
+  res = await fetch(`${base}/w/${id}/${store.getWant(id).slug}`);
+  const page = await res.text();
+  assert.match(page, /via Stack Exchange/);
+  assert.match(page, /Software Recommendations \(Stack Exchange, CC BY-SA\) by Some Person\./);
+});

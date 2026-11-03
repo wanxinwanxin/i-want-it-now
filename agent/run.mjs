@@ -73,7 +73,7 @@ function loadState() {
     /* first run */
   }
   const today = new Date().toISOString().slice(0, 10);
-  if (s.day !== today) Object.assign(s, { day: today, builds: 0, research: 0, imports: 0, cost: 0 });
+  if (s.day !== today) Object.assign(s, { day: today, builds: 0, research: 0, imports: 0, seImports: 0, cost: 0 });
   s.seenHn ||= [];
   s.failures ||= {};
   s.lastScan ||= 0;
@@ -430,6 +430,61 @@ async function scanHn(state) {
   }
 }
 
+// ---------- Scan Software Recommendations (Stack Exchange) for wants ----------
+// Each question there asks for software that does an exact job. The content is CC BY-SA,
+// so an import paraphrases the question, names the author, and links to the original.
+
+async function scanSe(state) {
+  state.seenSe ||= [];
+  state.seImports ||= 0;
+  if (state.seImports >= CFG.importsPerDay) return log('se: daily import limit reached');
+  const since = Math.floor(Date.now() / 1000) - 14 * 86400;
+  let items = [];
+  try {
+    const url = `https://api.stackexchange.com/2.3/questions?order=desc&sort=creation&site=softwarerecs&pagesize=40&fromdate=${since}&filter=withbody`;
+    const data = await (await fetch(url)).json();
+    items = data.items || [];
+  } catch (err) {
+    return log(`se: fetch failed: ${err.message}`);
+  }
+  const seen = new Set(state.seenSe);
+  const candidates = items
+    .filter((q) => !seen.has(String(q.question_id)) && !q.closed_date && q.owner && q.owner.display_name)
+    .map((q) => ({ id: String(q.question_id), author: stripHtml(q.owner.display_name), link: q.link, text: `${stripHtml(q.title)}\n\n${stripHtml(q.body)}`.slice(0, 2500) }));
+  state.seenSe.push(...candidates.map((c) => c.id));
+  state.seenSe = state.seenSe.slice(-3000);
+  log(`se: ${candidates.length} new questions`);
+  if (!candidates.length) return;
+  let picks = [];
+  try {
+    const r = await claude(triagePrompt(candidates, 5, 'public questions on the Software Recommendations Stack Exchange site'), { tools: '', model: CFG.modelTriage, timeoutMs: 6 * 60_000, tag: 'triage-se' });
+    state.cost += r.cost;
+    picks = extractJson(r.text) || [];
+  } catch (err) {
+    return log(`se: triage failed: ${err.message}`);
+  }
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  for (const p of (Array.isArray(picks) ? picks : []).filter((p) => Number(p.quality) >= 7)) {
+    if (state.seImports >= CFG.importsPerDay) break;
+    const c = byId.get(String(p.id));
+    if (!c || !p.want) continue;
+    try {
+      const r = await api('POST', '/api/agent/wants', {
+        text: p.want,
+        details: p.details || '',
+        done_when: p.done_when || '',
+        author: `${c.author} (SE)`.slice(0, 40),
+        source: 'se',
+        source_url: c.link,
+      });
+      if (!r.duplicate) state.seImports++;
+      log(`se: imported ${c.id} -> #${r.id}: ${p.want}`);
+    } catch (err) {
+      log(`se: import failed: ${err.message}`);
+    }
+  }
+}
+
 // ---------- Import wants from one "what do you wish existed" thread ----------
 
 async function importThread(id, state, maxImports) {
@@ -486,6 +541,8 @@ async function tick() {
       state.lastScan = Date.now();
       saveState(state);
       await scanHn(state);
+      saveState(state);
+      await scanSe(state);
       saveState(state);
       if (args.has('--scan')) return false;
     }

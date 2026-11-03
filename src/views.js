@@ -134,10 +134,23 @@ function statusChip(w) {
   return html`<span class="chip st-${w.status}">${w.status === 'fulfilled' ? '✓ ' : ''}${STATUS_LABEL[w.status] || w.status}</span>`;
 }
 
+// Imported wants keep their source. Each source has a short chip label and an attribution line.
+const SOURCES = {
+  hn: { chip: 'via Hacker News', where: 'a public Hacker News comment', link: 'Read the original comment', suffix: / \(HN\)$/ },
+  se: { chip: 'via Stack Exchange', where: 'a public question on Software Recommendations (Stack Exchange, CC BY-SA)', link: 'Read the original question', suffix: / \(SE\)$/ },
+};
+
 function sourceChip(w) {
-  if (w.source === 'hn') return html`<span class="chip src">via Hacker News</span>`;
+  if (SOURCES[w.source]) return html`<span class="chip src">${SOURCES[w.source].chip}</span>`;
   if (w.source === 'agent') return html`<span class="chip src">spotted by the agent</span>`;
   return '';
+}
+
+function sourceLine(w) {
+  const s = SOURCES[w.source];
+  if (!s || !w.source_url) return '';
+  const who = w.author ? ` by ${w.author.replace(s.suffix, '')}` : '';
+  return html`<p class="sourceline">The agent found this want in ${s.where}${who}. <a href="${w.source_url}" rel="nofollow noopener" target="_blank">${s.link} ↗</a></p>`;
 }
 
 function agentChip(w) {
@@ -362,9 +375,7 @@ export function wantPage({ w, answers, myVotes, on, isCreator, related, created,
       </div>
     </div>
     ${w.details ? html`<div class="details">${textBlock(w.details)}</div>` : ''}
-    ${w.source === 'hn' && w.source_url
-      ? html`<p class="sourceline">The agent found this want in a public Hacker News comment${w.author ? ` by ${w.author.replace(/ \(HN\)$/, '')}` : ''}. <a href="${w.source_url}" rel="nofollow noopener" target="_blank">Read the original comment ↗</a></p>`
-      : ''}
+    ${sourceLine(w)}
     ${w.done_when ? html`<div class="donewhen"><b>It is done when</b> ${w.done_when}</div>` : ''}
     ${topics.length ? html`<div class="topicrow">${topics.map((t) => html`<a class="chip topic" href="/topics/${t}">${TOPIC_BY_SLUG.get(t)?.name || t}</a>`)}</div>` : ''}
     <div class="actions">
@@ -775,7 +786,7 @@ function eventLine(e) {
   const want = html`<a href="/w/${e.want_id}/${e.slug}">I want ${cut(e.text, 110)}</a>`;
   switch (e.kind) {
     case 'want':
-      return html`<span class="ev k-want">New want</span> ${want}${e.source === 'hn' ? html` <span class="muted">(from Hacker News)</span>` : ''}`;
+      return html`<span class="ev k-want">New want</span> ${want}${e.source === 'hn' ? html` <span class="muted">(from Hacker News)</span>` : e.source === 'se' ? html` <span class="muted">(from Stack Exchange)</span>` : ''}`;
     case 'made':
       return html`<span class="ev k-made">Agent built</span> <a href="/made/${e.made_slug}"><b>${e.title}</b></a> for ${want}`;
     case 'found':

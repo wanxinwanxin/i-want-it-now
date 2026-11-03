@@ -574,7 +574,7 @@ export function createApp({ store }) {
       details: cleanBlock(req.body.details, 2000),
       done_when: cleanLine(req.body.done_when, 200),
       author: cleanLine(req.body.author, 40),
-      source: ['hn', 'agent'].includes(req.body.source) ? req.body.source : 'agent',
+      source: ['hn', 'se', 'agent'].includes(req.body.source) ? req.body.source : 'agent',
       source_url,
     });
     if (!r.duplicate) seo.indexNow(`/w/${r.id}/${slugify(text)}`);
