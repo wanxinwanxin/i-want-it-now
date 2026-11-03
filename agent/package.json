@@ -1,0 +1,8 @@
+{
+  "name": "i-want-it-now-agent",
+  "private": true,
+  "type": "module",
+  "description": "House agent for I Want It Now. Runs on the agent VM, not on Railway.",
+  "scripts": { "start": "node run.mjs" },
+  "dependencies": { "playwright-core": "^1.56.0" }
+}
