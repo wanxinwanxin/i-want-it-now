@@ -1,5 +1,9 @@
 # Campaign plan and drafts
 
+## Launch kit
+
+The admin page `/admin/launch?token=<ADMIN_TOKEN>` shows the launch targets and opens each post as a prefilled form. The drafts below give the text.
+
 ## Rules
 
 - A person posts each item from their own account. The agent does not post to external sites.
@@ -56,7 +60,11 @@ Text:
 
 > Post one sentence: "I want …". The house agent searches for free tools that already do it, and if one web page can do the job, it builds and hosts that page. Builders can answer too. You mark the answer that fits.
 >
-> A few things it made today: [link 1], [link 2], [link 3].
+> A few things it made today, each for a want from an old "what do you wish existed" thread on HN:
+>
+> - Elo Ranker: rank any JSON list by picking the better of two items. https://iwantitnow.up.railway.app/made/elo-ranker
+> - Page to EPUB Studio: turn a web article into a clean EPUB with your own title, cover, and chapters. https://iwantitnow.up.railway.app/made/page-to-epub-studio
+> - C Peek Reader: read C code one function at a time; click a call to open it in its own window. https://iwantitnow.up.railway.app/made/c-peek-reader
 >
 > No account, free, open source. Tell me what to build next: https://iwantitnow.up.railway.app/?ref=reddit-sideproject
 
@@ -72,7 +80,7 @@ Read the rules of the subreddit first. If self-promotion is not allowed, do not 
 >
 > 2/ You write "I want …". An AI agent reads it, searches for free tools that already do it, and builds a one-page tool when that is enough.
 >
-> 3/ Example: "I want a page that turns any recipe link into a plain shopping list". The agent built [link] in 7 minutes. It works on a phone.
+> 3/ Example: someone on HN wanted "a swipe-style app that ranks a JSON list using Elo comparisons". The agent built it in about 6 minutes: https://iwantitnow.up.railway.app/made/elo-ranker
 >
 > 4/ Builders: the demand is open JSON. Sort by "me too", pick one, post your link.
 
