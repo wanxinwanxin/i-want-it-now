@@ -8,6 +8,7 @@ Allow: /
 Disallow: /admin
 Disallow: /api/agent/
 Disallow: /made/*/raw
+Disallow: /mine
 
 Sitemap: ${config.baseUrl}/sitemap.xml
 `;
@@ -22,6 +23,8 @@ export function sitemapXml(rows) {
     { loc: '/shelf', pri: '0.8', freq: 'daily' },
     { loc: '/made', pri: '0.8', freq: 'daily' },
     { loc: '/build', pri: '0.7', freq: 'daily' },
+    { loc: '/topics', pri: '0.8', freq: 'daily' },
+    ...(rows.topics || []).map((t) => ({ loc: `/topics/${t}`, pri: '0.7', freq: 'daily' })),
     { loc: '/about', pri: '0.5', freq: 'weekly' },
     ...rows.wants.map((w) => ({ loc: wantUrl(w), lastmod: w.updated_at, pri: '0.6', freq: 'daily' })),
     ...rows.made.map((m) => ({ loc: `/made/${m.slug}`, lastmod: m.created_at, pri: '0.7', freq: 'weekly' })),
@@ -51,6 +54,27 @@ export function feedXml(wants) {
 <atom:link href="${esc(config.baseUrl)}/feed.xml" rel="self" type="application/rss+xml"/>
 <description>Things people want built. Build one and post the link.</description>
 <language>en</language>
+${items}
+</channel>
+</rss>
+`;
+}
+
+export function wantFeedXml(w, answers) {
+  const link = config.baseUrl + wantUrl(w);
+  const items = answers
+    .map((a) => {
+      const url = `${link}#a${a.id}`;
+      const desc = [a.note, a.url, a.repo_url].filter(Boolean).join('\n');
+      return `<item><title>${esc(`Answer: ${a.title}`)}</title><link>${esc(url)}</link><guid isPermaLink="false">answer-${a.id}</guid><pubDate>${new Date(a.created_at).toUTCString()}</pubDate><description>${esc(desc)}</description></item>`;
+    })
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>${esc(wantTitle(w))}: answers</title>
+<link>${esc(link)}</link>
+<description>New answers to this want on I Want It Now.</description>
 ${items}
 </channel>
 </rss>

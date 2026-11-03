@@ -289,3 +289,43 @@ test('admin page needs the token', async () => {
   res = await fetch(base + '/admin?token=admin-test-token');
   assert.equal(res.status, 200);
 });
+
+test('topics: classify, pages, agent override', async () => {
+  const { classify } = await import('../src/topics.js');
+  assert.deepEqual(classify('a CI pipeline that runs my docker tests locally'), ['dev-tools']);
+  assert.deepEqual(classify('zzz qqq'), ['other']);
+  const { id } = store.createWant({ text: 'a recipe scaler for my grocery shopping', creator: 't' });
+  assert.deepEqual(store.topicsFor(id), ['home-food']);
+  let res = await fetch(base + '/topics');
+  assert.match(await res.text(), /Home and food/);
+  res = await fetch(base + '/topics/home-food');
+  assert.match(await res.text(), /recipe scaler/);
+  res = await fetch(base + '/topics/nope');
+  assert.equal(res.status, 404);
+  res = await fetch(`${base}/api/agent/result/${id}`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer agent-test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ state: 'needs_human', topics: ['money', 'bogus'] }),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(store.topicsFor(id), ['money']);
+});
+
+test('mine page lists wants from this browser only', async () => {
+  const a = browser();
+  const b = browser();
+  await a('/');
+  await b('/');
+  await a('/wants', { method: 'POST', form: { text: 'a unique test want for the mine page' } });
+  let res = await a('/mine');
+  assert.match(await res.text(), /unique test want for the mine page/);
+  res = await b('/mine');
+  assert.ok(!(await res.text()).includes('unique test want for the mine page'));
+});
+
+test('want feed lists answers', async () => {
+  const { id } = store.createWant({ text: 'a want with a feed of answers', creator: 'f' });
+  store.addAnswer({ want_id: id, kind: 'built', title: 'FeedThing', url: 'https://feed.example.com' });
+  const res = await fetch(`${base}/w/${id}/feed.xml`);
+  assert.match(await res.text(), /Answer: FeedThing/);
+});

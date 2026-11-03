@@ -104,6 +104,14 @@ CREATE TABLE IF NOT EXISTS ratelimit (
   reset_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS want_topics (
+  want_id INTEGER NOT NULL REFERENCES wants(id) ON DELETE CASCADE,
+  topic TEXT NOT NULL,
+  by_agent INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (want_id, topic)
+);
+CREATE INDEX IF NOT EXISTS want_topics_topic ON want_topics(topic);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS wants_fts USING fts5(
   text, details, done_when,
   content='wants', content_rowid='id',

@@ -12,6 +12,9 @@ export const config = {
   adminToken: env.ADMIN_TOKEN || '',
   agentToken: env.AGENT_TOKEN || '',
   indexNowKey: env.INDEXNOW_KEY || '',
+  // Optional verification tags for Google Search Console and Bing Webmaster Tools.
+  googleVerify: env.GOOGLE_SITE_VERIFICATION || '',
+  bingVerify: env.BING_SITE_VERIFICATION || '',
   production: env.NODE_ENV === 'production',
   // A want needs this many "works for me" votes on one answer to become fulfilled without the wisher.
   fulfillVotes: Number(env.FULFILL_VOTES || 3),

@@ -9,6 +9,7 @@ import * as views from './views.js';
 import * as seo from './seo.js';
 import { cleanWantText, cleanLine, cleanBlock, cleanUrl, isRepoUrl, slugify } from './util.js';
 import { renderOg } from './og.js';
+import { TOPICS, TOPIC_BY_SLUG, cleanTopics } from './topics.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const BOT_RE = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|curl|wget|python-requests|httpclient|headless/i;
@@ -205,6 +206,13 @@ export function createApp({ store }) {
     res.redirect(303, `${views.wantUrl(w)}?new=1`);
   });
 
+  // One RSS feed for each want, so that the wisher can follow new answers in a feed reader.
+  app.get('/w/:id/feed.xml', (req, res) => {
+    const w = store.getWant(Number(req.params.id));
+    if (!w || w.hidden) return res.status(404).type('text').send('Not found');
+    res.type('application/rss+xml').send(seo.wantFeedXml(w, store.answersFor(w.id)));
+  });
+
   app.get('/w/:id{/:slug}', (req, res) => {
     const id = Number(req.params.id);
     const w = Number.isInteger(id) ? store.getWant(id) : null;
@@ -222,9 +230,11 @@ export function createApp({ store }) {
         isCreator: Boolean(w.creator && w.creator === req.voter),
         related,
         created: req.query.new === '1',
+        topics: store.topicsFor(id),
       }),
     );
   });
+
 
   function loadWant(req, res) {
     const w = store.getWant(Number(req.params.id));
@@ -342,6 +352,26 @@ export function createApp({ store }) {
     res.type('text/plain; charset=utf-8').send(`<!-- ${m.title}. Made by the I Want It Now agent for ${config.baseUrl}/w/${m.want_id}. License: MIT. -->\n${m.html}`);
   });
 
+  app.get('/topics', (req, res) => {
+    const topics = store.topicStats();
+    const samples = {};
+    for (const t of topics) samples[t.slug] = store.listWants({ sort: 'top', topic: t.slug, status: 'unfulfilled', limit: 3 });
+    send(res, views.topicsPage({ topics, samples }));
+  });
+
+  app.get('/topics/:slug', (req, res) => {
+    const topic = TOPIC_BY_SLUG.get(req.params.slug);
+    if (!topic) return fail(req, res, 404, 'There is no topic with this name.', '/topics');
+    const stats = store.topicStats().find((t) => t.slug === topic.slug) || { wants: 0, me_too: 0, answered: 0, fulfilled: 0 };
+    const wants = store.listWants({ sort: 'top', topic: topic.slug, limit: 60 });
+    send(res, views.topicPage({ topic, stats, wants, shelf: store.shelf({ topic: topic.slug, limit: 24 }), mine: myMeToos(wants, req.voter) }));
+  });
+
+  app.get('/mine', (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    send(res, views.minePage({ created: store.listWants({ sort: 'new', creator: req.voter, limit: 100 }), metoo: store.listWants({ sort: 'new', meToo: req.voter, limit: 100 }) }));
+  });
+
   app.get('/build', (req, res) => {
     const top = store.listWants({ sort: 'top', status: 'unfulfilled', limit: 20 });
     const human = store.listWants({ sort: 'top', status: 'unfulfilled', agent: 'needs_human', limit: 20 });
@@ -361,7 +391,8 @@ export function createApp({ store }) {
     const sort = ['hot', 'new', 'top'].includes(req.query.sort) ? req.query.sort : 'new';
     const status = ['open', 'answered', 'fulfilled', 'unfulfilled'].includes(req.query.status) ? req.query.status : null;
     const q = cleanLine(req.query.q, 100) || null;
-    const wants = store.listWants({ sort, status, q, limit: req.query.limit || 30, offset: req.query.offset || 0 });
+    const topic = TOPIC_BY_SLUG.has(req.query.topic) ? req.query.topic : null;
+    const wants = store.listWants({ sort, status, q, topic, limit: req.query.limit || 30, offset: req.query.offset || 0 });
     res.json({ wants: wants.map(publicWant) });
   });
 
@@ -377,6 +408,7 @@ export function createApp({ store }) {
   });
 
   app.get('/api/stats', cors, (req, res) => res.json(store.stats()));
+  app.get('/api/topics', cors, (req, res) => res.json({ topics: store.topicStats().map(({ words, ...t }) => t) }));
 
   // ---------- Agent API (bearer token) ----------
 
@@ -440,6 +472,8 @@ export function createApp({ store }) {
       );
       seo.indexNow(`/made/${made.slug}`);
     }
+    const topics = cleanTopics(body.topics);
+    if (topics) store.setTopics(w.id, topics, true);
     const state = ['done', 'needs_human', 'skipped'].includes(body.state) ? body.state : 'done';
     store.agentFinish(w.id, state, cleanLine(body.note, 500));
     seo.indexNow(views.wantUrl(w));
@@ -543,6 +577,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const db = openDb(config.dbPath);
   const store = createStore(db);
+  const filled = store.backfillTopics();
+  if (filled) console.log(`tagged ${filled} wants with topics`);
   setInterval(() => store.sweep(), 10 * 60_000).unref();
   const app = createApp({ store });
   app.listen(config.port, config.host, () => console.log(`i-want-it-now on ${config.host}:${config.port} (db ${config.dbPath})`));

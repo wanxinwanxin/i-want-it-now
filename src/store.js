@@ -1,5 +1,6 @@
 import { config } from './config.js';
 import { slugify, ftsQuery } from './util.js';
+import { classify, TOPICS } from './topics.js';
 
 const WANT_COLS = `w.id, w.slug, w.text, w.details, w.done_when, w.author, w.source, w.source_url, w.status,
   w.me_too, w.answer_count, w.fulfilled_answer_id, w.fulfilled_at, w.agent_state, w.agent_note, w.agent_at,
@@ -95,6 +96,7 @@ export function createStore(db) {
         const id = Number(info.lastInsertRowid);
         if (creator) stmt.addMeToo.run(id, creator);
         stmt.countMeToo.run({ id });
+        api.setTopics(id, classify(`${text} ${details} ${done_when}`), false);
         return { id, duplicate: false };
       })();
     },
@@ -104,9 +106,21 @@ export function createStore(db) {
       return w || null;
     },
 
-    listWants({ sort = 'hot', status = null, q = null, limit = 30, offset = 0, source = null, agent = null } = {}) {
+    listWants({ sort = 'hot', status = null, q = null, limit = 30, offset = 0, source = null, agent = null, topic = null, creator = null, meToo = null } = {}) {
       const where = ['w.hidden = 0'];
       const params = {};
+      if (topic) {
+        where.push('w.id IN (SELECT want_id FROM want_topics WHERE topic = @topic)');
+        params.topic = topic;
+      }
+      if (creator) {
+        where.push('w.creator = @creator');
+        params.creator = creator;
+      }
+      if (meToo) {
+        where.push('w.id IN (SELECT want_id FROM metoos WHERE voter = @meToo) AND (w.creator IS NULL OR w.creator != @meToo)');
+        params.meToo = meToo;
+      }
       if (status === 'open') where.push(`w.status = 'open'`);
       else if (status === 'unfulfilled') where.push(`w.status != 'fulfilled'`);
       else if (status) {
@@ -277,8 +291,9 @@ export function createStore(db) {
     },
 
     // The shelf: every visible answer, newest first, with the want it answers.
-    shelf({ filter = 'all', limit = 60, offset = 0 } = {}) {
+    shelf({ filter = 'all', limit = 60, offset = 0, topic = null } = {}) {
       const where = ['a.hidden = 0', 'w.hidden = 0'];
+      if (topic) where.push(`w.id IN (SELECT want_id FROM want_topics WHERE topic = '${topic.replace(/[^a-z-]/g, '')}')`);
       if (filter === 'agent') where.push('a.made_id IS NOT NULL');
       else if (filter === 'open-source') where.push('(a.made_id IS NOT NULL OR a.is_open_source = 1 OR (a.is_open_source IS NULL AND a.repo_url IS NOT NULL))');
       else if (filter === 'existing') where.push(`a.kind = 'existing'`);
@@ -306,6 +321,42 @@ export function createStore(db) {
             (SELECT coalesce(sum(me_too), 0) FROM wants WHERE hidden = 0) AS me_too`,
         )
         .get();
+    },
+
+    // ---- Topics (clusters of demand) ----
+
+    setTopics(wantId, topics, byAgent) {
+      db.transaction(() => {
+        db.prepare(`DELETE FROM want_topics WHERE want_id = ?`).run(wantId);
+        const ins = db.prepare(`INSERT OR IGNORE INTO want_topics (want_id, topic, by_agent) VALUES (?, ?, ?)`);
+        for (const t of topics) ins.run(wantId, t, byAgent ? 1 : 0);
+      })();
+    },
+
+    topicsFor(wantId) {
+      return db.prepare(`SELECT topic FROM want_topics WHERE want_id = ? ORDER BY rowid`).all(wantId).map((r) => r.topic);
+    },
+
+    // Demand for each topic: number of wants, total me-too, and how many are answered or fulfilled.
+    topicStats() {
+      const rows = db
+        .prepare(
+          `SELECT t.topic, count(*) AS wants, sum(w.me_too) AS me_too,
+             sum(w.status != 'open') AS answered, sum(w.status = 'fulfilled') AS fulfilled,
+             sum(w.status != 'fulfilled' AND w.agent_state = 'needs_human') AS needs_human
+           FROM want_topics t JOIN wants w ON w.id = t.want_id WHERE w.hidden = 0 GROUP BY t.topic`,
+        )
+        .all();
+      const byTopic = new Map(rows.map((r) => [r.topic, r]));
+      return TOPICS.map((t) => ({ ...t, ...(byTopic.get(t.slug) || { wants: 0, me_too: 0, answered: 0, fulfilled: 0, needs_human: 0 }) }))
+        .filter((t) => t.wants > 0)
+        .sort((a, b) => b.me_too - a.me_too || b.wants - a.wants);
+    },
+
+    backfillTopics() {
+      const rows = db.prepare(`SELECT id, text, details, done_when FROM wants WHERE id NOT IN (SELECT want_id FROM want_topics)`).all();
+      for (const r of rows) api.setTopics(r.id, classify(`${r.text} ${r.details} ${r.done_when}`), false);
+      return rows.length;
     },
 
     // ---- Agent queue ----
@@ -377,6 +428,7 @@ export function createStore(db) {
       return {
         wants: db.prepare(`SELECT id, slug, updated_at FROM wants WHERE hidden = 0 ORDER BY id DESC LIMIT 40000`).all(),
         made: db.prepare(`SELECT slug, created_at FROM made WHERE hidden = 0 ORDER BY id DESC LIMIT 10000`).all(),
+        topics: db.prepare(`SELECT DISTINCT t.topic FROM want_topics t JOIN wants w ON w.id = t.want_id WHERE w.hidden = 0`).all().map((r) => r.topic),
       };
     },
   };

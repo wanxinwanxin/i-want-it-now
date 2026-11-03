@@ -289,7 +289,7 @@ async function work(w, state) {
     parts.push(research.reason ? `One web page cannot do this: ${research.reason}` : 'One web page cannot do this.');
     if (!existing.length) stateOut = 'needs_human';
   } else if (!made && !existing.length) stateOut = 'needs_human';
-  const res = await api('POST', `/api/agent/result/${w.id}`, { state: stateOut, note: parts.join(' ').slice(0, 480), existing, made });
+  const res = await api('POST', `/api/agent/result/${w.id}`, { state: stateOut, note: parts.join(' ').slice(0, 480), existing, made, topics: research.topics });
   log(`want #${w.id}: posted (${stateOut}) ${made ? `made=${res.made ? res.made.slug : '?'}` : ''}`);
 }
 

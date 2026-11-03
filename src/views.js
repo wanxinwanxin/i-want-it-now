@@ -1,6 +1,7 @@
 import { html, raw, jsonLd, textBlock } from './html.js';
 import { config } from './config.js';
 import { timeAgo, hostOf, plural } from './util.js';
+import { TOPIC_BY_SLUG } from './topics.js';
 
 const SITE = 'I Want It Now';
 const ASSET_V = Date.now().toString(36);
@@ -51,6 +52,8 @@ ${noindex ? raw('<meta name="robots" content="noindex">') : ''}
 <meta property="og:image" content="${img}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#ff5a1f">
+${config.googleVerify ? html`<meta name="google-site-verification" content="${config.googleVerify}">` : ''}
+${config.bingVerify ? html`<meta name="msvalidate.01" content="${config.bingVerify}">` : ''}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="New wants" href="/feed.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,6 +68,7 @@ ${jsonld ? jsonLd(jsonld) : ''}
   <a class="logo" href="/" aria-label="${SITE} home">i want it <span>now</span></a>
   <nav aria-label="Main">
     <a href="/wants">Wants</a>
+    <a href="/topics">Topics</a>
     <a href="/shelf">Shelf</a>
     <a href="/build">Build</a>
     <a href="/about">How it works</a>
@@ -81,6 +85,8 @@ ${body}
   </div>
   <nav aria-label="Footer">
     <a href="/wants?sort=new">New wants</a>
+    <a href="/topics">Topics</a>
+    <a href="/mine">Your wants</a>
     <a href="/wants?status=fulfilled">Fulfilled</a>
     <a href="/shelf">Shelf</a>
     <a href="/made">Agent-made tools</a>
@@ -274,7 +280,7 @@ export function wantForm({ compact = false } = {}) {
   </form>`;
 }
 
-export function wantPage({ w, answers, myVotes, on, isCreator, related, created }) {
+export function wantPage({ w, answers, myVotes, on, isCreator, related, created, topics = [] }) {
   const fitAnswer = answers.find((a) => a.id === w.fulfilled_answer_id);
   const desc = cut(`Someone wants ${w.text}. ${w.me_too} people want it. ${answers.length ? `${answers.length} answers so far.` : 'No answer yet. Build it.'}`, 300);
   const agentBox = (() => {
@@ -301,8 +307,10 @@ export function wantPage({ w, answers, myVotes, on, isCreator, related, created 
     </div>
     ${w.details ? html`<div class="details">${textBlock(w.details)}</div>` : ''}
     ${w.done_when ? html`<div class="donewhen"><b>It is done when</b> ${w.done_when}</div>` : ''}
+    ${topics.length ? html`<div class="topicrow">${topics.map((t) => html`<a class="chip topic" href="/topics/${t}">${TOPIC_BY_SLUG.get(t)?.name || t}</a>`)}</div>` : ''}
     <div class="actions">
       <button class="btn small ghost" data-share="${config.baseUrl}${wantUrl(w)}" data-title="${wantTitle(w)}">Share</button>
+      <a class="btn small ghost" href="/w/${w.id}/feed.xml" title="Get new answers in your feed reader">Watch (RSS)</a>
       <a class="btn small ghost" href="/api/wants/${w.id}">JSON</a>
       <form method="post" action="/w/${w.id}/report" data-ajax="report" class="report"><button class="linkish">Report</button></form>
     </div>
@@ -607,4 +615,64 @@ export function adminPage({ stats, hits, wants, answers, token }) {
     <table>${answers.map((a) => html`<tr class="${a.hidden ? 'muted' : ''}"><td>#${a.id}</td><td>${cut(a.title, 50)}</td><td>${hostOf(a.url || a.repo_url || '')}</td><td>w${a.want_id}</td><td>r${a.reports}</td><td>${hideBtn('answer', a.id, a.hidden)}</td></tr>`)}</table>
   </section>`;
   return layout({ title: 'Admin', path: '/admin', body, noindex: true, wide: true });
+}
+
+export function topicsPage({ topics, samples }) {
+  const max = Math.max(1, ...topics.map((t) => t.me_too));
+  const body = html`<section class="listhead">
+      <h1>What people want, by topic</h1>
+      <p class="lede small">Every want on the site, grouped. The bar shows total demand: the sum of all “me too” votes in the topic. Big bars with few answers are the best places to build.</p>
+    </section>
+    <div class="topicgrid">
+      ${topics.map(
+        (t) => html`<article class="topiccard">
+          <h2><a href="/topics/${t.slug}">${t.name}</a></h2>
+          <div class="bar" role="img" aria-label="${t.me_too} me-too votes"><span style="width:${Math.max(4, Math.round((t.me_too / max) * 100))}%"></span></div>
+          <div class="meta"><span><b>${t.me_too}</b> me-too</span><span>${plural(t.wants, 'want')}</span><span>${t.answered} answered</span><span>${t.fulfilled} fit exactly</span></div>
+          <ul class="mini">${(samples[t.slug] || []).map((w) => html`<li><a href="${wantUrl(w)}">${cut(w.text, 80)}</a> <span>▲${w.me_too}</span></li>`)}</ul>
+        </article>`,
+      )}
+    </div>`;
+  return layout({ title: 'Topics: clusters of demand', description: 'Software that people want, grouped by topic and ranked by demand. Find the gaps worth building.', path: '/topics', body, wide: true });
+}
+
+export function topicPage({ topic, stats, wants, shelf, mine }) {
+  const body = html`<section class="listhead">
+      <div class="crumbs"><a href="/topics">Topics</a> <span>/</span> ${topic.name}</div>
+      <h1>${topic.name}: what people want built</h1>
+      <p class="lede small">${topic.blurb} ${plural(stats.wants, 'want')}, ${stats.me_too} me-too votes, ${stats.answered} answered, ${stats.fulfilled} that fit exactly.</p>
+    </section>
+    <div class="cols">
+      <section>
+        <div class="sechead"><h2>Wants</h2><a href="/#want">Add one →</a></div>
+        ${wantList(wants, mine, 'Nothing here yet.')}
+      </section>
+      <section>
+        <div class="sechead"><h2>On the shelf</h2></div>
+        ${shelf.length ? html`<div class="shelf one">${shelf.map(shelfCard)}</div>` : html`<p class="empty">No answers in this topic yet. Build one.</p>`}
+      </section>
+    </div>`;
+  return layout({
+    title: `${topic.name} people want built`,
+    description: `Free ${topic.name.toLowerCase()} that people asked for, and the ones nobody has built yet. ${topic.blurb}`,
+    path: `/topics/${topic.slug}`,
+    body,
+    wide: true,
+  });
+}
+
+export function minePage({ created, metoo }) {
+  const body = html`<section class="listhead">
+      <h1>Your wants</h1>
+      <p class="lede small">This list lives in this browser. There is no account. Open a want here to mark the answer that fits.</p>
+    </section>
+    <section>
+      <div class="sechead"><h2>You posted</h2></div>
+      ${wantList(created, new Set(created.map((w) => w.id)), 'You have not posted a want from this browser yet.')}
+    </section>
+    <section>
+      <div class="sechead"><h2>You said “me too”</h2></div>
+      ${wantList(metoo, new Set(metoo.map((w) => w.id)), 'Nothing yet.')}
+    </section>`;
+  return layout({ title: 'Your wants', path: '/mine', body, noindex: true });
 }
