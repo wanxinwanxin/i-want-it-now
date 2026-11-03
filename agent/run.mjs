@@ -88,14 +88,32 @@ async function api(method, p, body) {
     log('DRY', method, p, JSON.stringify(body || {}).slice(0, 400));
     return { ok: true, dry: true };
   }
-  const res = await fetch(BASE + p, {
-    method,
-    headers: { authorization: `Bearer ${TOKEN}`, ...(body ? { 'content-type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`${method} ${p} -> ${res.status} ${JSON.stringify(data)}`);
-  return data;
+  // A deploy restarts the site for a few seconds. Retry network errors and 5xx answers, so that finished work is not lost.
+  for (let attempt = 1; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(BASE + p, {
+        method,
+        headers: { authorization: `Bearer ${TOKEN}`, ...(body ? { 'content-type': 'application/json' } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (err) {
+      if (attempt < 6) {
+        log(`api ${method} ${p}: ${err.message}, retry ${attempt}`);
+        await new Promise((r) => setTimeout(r, 15_000));
+        continue;
+      }
+      throw err;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (res.status >= 500 && attempt < 6) {
+      log(`api ${method} ${p}: ${res.status}, retry ${attempt}`);
+      await new Promise((r) => setTimeout(r, 15_000));
+      continue;
+    }
+    if (!res.ok) throw new Error(`${method} ${p} -> ${res.status} ${JSON.stringify(data)}`);
+    return data;
+  }
 }
 
 // ---------- Claude ----------
