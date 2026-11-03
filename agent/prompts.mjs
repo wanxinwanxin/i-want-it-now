@@ -62,7 +62,8 @@ Hard constraints (the page is served in a sandboxed iframe with an opaque origin
 - Must work on a phone (375px wide) and on a desktop. Use a clear, modern design with good contrast, a light theme, and visible focus states.
 - Start with a short title and one line that says what the tool does. Put example data or a "Try an example" button, so that the tool shows value in the first second.
 - Handle empty and invalid input with friendly messages.
-- Keep it under 60 KB.
+- Build the core of the want first, and build it well. Do not add features that the want does not ask for.
+- Keep it under 50 KB.
 
 Reply in exactly this format, with nothing else:
 \`\`\`json

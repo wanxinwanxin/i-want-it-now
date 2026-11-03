@@ -33,6 +33,7 @@ Set these variables to change the limits. The values below are the defaults.
 | `AGENT_SCAN_EVERY_MIN` | 90 | Wait time between two Hacker News scans |
 | `AGENT_MODEL_RESEARCH` | `sonnet` | Model for research |
 | `AGENT_MODEL_BUILD` | `opus` | Model for build and fix |
+| `AGENT_BUILD_EFFORT` | `medium` | Reasoning effort for build and fix |
 
 ## Run it
 
