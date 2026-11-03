@@ -547,6 +547,16 @@ export function createApp({ store }) {
     res.json({ ok: true, answers: created, made });
   });
 
+  // The agent replaces the HTML of a tool after a fix. The thumbnail can change at the same time.
+  app.post('/api/agent/made/:slug/html', agentAuth, bigBody, (req, res) => {
+    const html = req.body && req.body.html;
+    if (typeof html !== 'string' || html.length < 200 || !/<html|<body|<!doctype/i.test(html)) return res.status(400).json({ error: 'html is required' });
+    const ok = store.updateMadeHtml(req.params.slug, html.slice(0, 2_000_000));
+    const thumb = decodeThumb(req.body.thumb_jpg);
+    if (ok && thumb) store.setMadeThumb(req.params.slug, thumb);
+    res.status(ok ? 200 : 404).json({ ok });
+  });
+
   app.post('/api/agent/made/:slug/thumb', agentAuth, bigBody, (req, res) => {
     const thumb = decodeThumb(req.body && req.body.thumb_jpg);
     if (!thumb) return res.status(400).json({ error: 'thumb_jpg must be a base64 JPEG under 400 KB' });

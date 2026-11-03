@@ -373,3 +373,15 @@ test('build log, badge, launch kit, share links', async () => {
   res = await fetch(`${base}/w/${id}/${store.getWant(id).slug}`);
   assert.match(await res.text(), /twitter\.com\/intent\/tweet/);
 });
+
+test('agent can replace the HTML of a made page', async () => {
+  const { id } = store.createWant({ text: 'a tool whose html gets fixed', creator: 'fx' });
+  const { slug } = store.addMade({ want_id: id, title: 'Fix Me', summary: '', html: '<!doctype html><body>old</body>' });
+  const html = `<!doctype html><html><body>${'<p>new</p>'.repeat(30)}</body></html>`;
+  let res = await fetch(`${base}/api/agent/made/${slug}/html`, { method: 'POST', headers: { authorization: 'Bearer agent-test-token', 'content-type': 'application/json' }, body: JSON.stringify({ html }) });
+  assert.deepEqual(await res.json(), { ok: true });
+  res = await fetch(`${base}/made/${slug}/raw`);
+  assert.equal(await res.text(), html);
+  res = await fetch(`${base}/api/agent/made/${slug}/html`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ html }) });
+  assert.equal(res.status, 401);
+});

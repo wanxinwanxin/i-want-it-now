@@ -290,6 +290,10 @@ export function createStore(db) {
       return { id: Number(info.lastInsertRowid), slug };
     },
 
+    updateMadeHtml(slug, html) {
+      return db.prepare(`UPDATE made SET html = ? WHERE slug = ?`).run(html, slug).changes === 1;
+    },
+
     setMadeThumb(slug, thumb) {
       return db.prepare(`UPDATE made SET thumb = ? WHERE slug = ?`).run(thumb, slug).changes === 1;
     },

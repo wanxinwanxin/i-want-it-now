@@ -8,6 +8,7 @@
 //   node agent/run.mjs --dry      do the work, but post nothing to the site
 //   node agent/run.mjs --thread <hn-id> [max]   import wants from one HN thread
 //   node agent/run.mjs --thumbs   add screenshots to agent pages that have none
+//   node agent/run.mjs --fix <slug> "<problem>"   repair a live agent page
 //
 // Safety: each Claude call runs with --restricted. The research step has only WebSearch and WebFetch.
 // The build step and the triage step have no tools. No step can read files or run commands on this machine.
@@ -229,6 +230,14 @@ async function smokeTest(html) {
       await page.$eval('#f', (el, src) => (el.srcdoc = src), html);
       await page.waitForTimeout(2500);
       const frame = page.frames().find((f) => f !== page.mainFrame());
+      // Click the example button, like a first visitor does. Layout bugs often show only after this.
+      if (frame) {
+        const btn = frame.getByRole('button', { name: /example|sample|try|demo/i }).first();
+        if (await btn.count()) {
+          await btn.click({ timeout: 5000 }).catch((e) => errors.push(`clicking the example button failed: ${e.message.slice(0, 120)}`));
+          await page.waitForTimeout(2500);
+        }
+      }
       const info = frame ? await frame.evaluate(() => ({ text: document.body ? document.body.innerText.length : 0, overflow: document.documentElement.scrollWidth - window.innerWidth })) : { text: 0, overflow: 0 };
       if (info.text < 40) errors.push(`page shows almost no text at width ${width}`);
       if (width === 375 && info.overflow > 8) errors.push(`page scrolls sideways by ${info.overflow}px at 375px width`);
@@ -505,6 +514,32 @@ if (args.has('--thumbs')) {
     if (thumb) await api('POST', `/api/agent/made/${m.slug}/thumb`, { thumb_jpg: thumb });
     log(`thumb ${m.slug}: ${thumb ? 'ok' : 'failed'}`);
   }
+  process.exit(0);
+}
+const fixArg = process.argv.indexOf('--fix');
+if (fixArg > 0) {
+  // Repair a live tool: --fix <slug> "<problem>". The fixed page must pass the smoke test.
+  const slug = process.argv[fixArg + 1];
+  const problem = process.argv[fixArg + 2] || '';
+  const html = await (await fetch(`${BASE}/made/${slug}/raw`)).text();
+  const test = await smokeTest(html);
+  const errors = [...test.errors, ...(problem ? [problem] : [])];
+  if (!errors.length) {
+    log(`fix ${slug}: nothing to fix`);
+    process.exit(0);
+  }
+  const state = loadState();
+  const fx = await claude(fixPrompt({ text: slug }, html, errors), { tools: '', model: CFG.modelBuild, effort: CFG.buildEffort, timeoutMs: 20 * 60_000, tag: `fix-${slug}` });
+  state.cost += fx.cost;
+  saveState(state);
+  const fixed = extractHtml(fx.text);
+  const after = fixed ? await smokeTest(fixed) : { errors: ['no HTML returned'] };
+  if (after.errors.length) {
+    log(`fix ${slug}: still has errors: ${after.errors.join(' | ')}`);
+    process.exit(1);
+  }
+  await api('POST', `/api/agent/made/${slug}/html`, { html: fixed, thumb_jpg: await thumbnail(fixed) });
+  log(`fix ${slug}: updated`);
   process.exit(0);
 }
 const threadArg = process.argv.indexOf('--thread');
