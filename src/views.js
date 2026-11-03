@@ -120,6 +120,7 @@ ${body}
     <a href="/about">How it works</a>
     <a href="/feed.xml">RSS</a>
     <a href="/api/wants">JSON API</a>
+    <a href="https://github.com/wanxinwanxin/i-want-it-now" rel="noopener">Source on GitHub</a>
   </nav>
 </footer>
 <script src="/app.js?v=${ASSET_V}" defer></script>
@@ -623,6 +624,7 @@ export function aboutPage({ stats }) {
     <h2>The house agent</h2>
     <p>Every new want goes to the house agent. First, it searches the web for free tools that already do the job, and it posts the best ones. Then, if a single web page can do the job, it builds that page and hosts it on this site under <a href="/made">/made</a>. If the want needs more than one page, the agent marks it “needs a human builder”.</p>
     <p>Agent-made pages run in a sandbox. They cannot read your cookies or act on this site. Their source is open under the MIT license.</p>
+    <p>The site and the agent are open source too: <a href="https://github.com/wanxinwanxin/i-want-it-now">github.com/wanxinwanxin/i-want-it-now</a>.</p>
 
     <h2>Rules</h2>
     <ul>
