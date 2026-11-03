@@ -186,7 +186,7 @@ export function createApp({ store }) {
     const freshIds = new Set(fresh.map((w) => w.id));
     const top = store.listWants({ sort: 'top', status: 'open', limit: 16 }).filter((w) => !freshIds.has(w.id)).slice(0, 8);
     const shelf = store.shelf({ limit: 6 });
-    send(res, views.homePage({ stats: store.stats(), fresh, top, shelf, mine: myMeToos([...fresh, ...top], req.voter) }));
+    send(res, views.homePage({ stats: store.stats(), agent: store.agentStats(), fresh, top, shelf, mine: myMeToos([...fresh, ...top], req.voter) }));
   });
 
   app.get('/wants', (req, res) => {
@@ -427,7 +427,7 @@ export function createApp({ store }) {
     res.json({ wants: q.length < 4 ? [] : store.similarWants(q, { limit: 5 }).map(publicWant) });
   });
 
-  app.get('/api/stats', cors, (req, res) => res.json(store.stats()));
+  app.get('/api/stats', cors, (req, res) => res.json({ ...store.stats(), agent: store.agentStats() }));
   app.get('/api/made', cors, (req, res) =>
     res.json({
       made: store.listMade({ limit: 500 }).map((m) => ({

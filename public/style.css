@@ -179,6 +179,10 @@ input:focus, textarea:focus { border-color: var(--ink); outline: none; }
 .similar a { display: block; padding: 6px 0; text-decoration: none; font-weight: 600; }
 .similar a span { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: 6px; }
 
+.agentline { margin: 16px 0 0; color: var(--muted); font-size: 14px; font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--violet); margin-right: 4px; vertical-align: 1px; }
+.dot.live { background: var(--green); animation: pulse 1.6s ease-in-out infinite; }
+
 /* Stat bar */
 .statbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .statbar div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }

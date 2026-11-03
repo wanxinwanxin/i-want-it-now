@@ -206,12 +206,23 @@ function answerCard(a, w, { myVote = 0, isCreator = false } = {}) {
   </article>`;
 }
 
-export function homePage({ stats, fresh, top, shelf, mine }) {
+function agentLine(agent) {
+  if (!agent) return '';
+  const parts = [];
+  if (agent.working) parts.push(html`<span class="dot live"></span> The agent is working on a want now`);
+  else if (agent.last_at) parts.push(html`<span class="dot"></span> The agent answered a want ${timeAgo(agent.last_at)}`);
+  if (agent.queued) parts.push(html`${plural(agent.queued, 'want')} in its queue`);
+  if (!parts.length) return '';
+  return html`<p class="agentline">${parts.map((p, i) => html`${i ? ' · ' : ''}${p}`)}</p>`;
+}
+
+export function homePage({ stats, agent, fresh, top, shelf, mine }) {
   const body = html`
   <section class="hero">
     <h1>Say exactly what you want.<br><em>Get it now.</em></h1>
     <p class="lede">Building is cheap now. Knowing what to build is the hard part. Post the thing you want. Builders and our AI agent answer with live demos, open-source code, or tools that already exist.</p>
     ${wantForm()}
+    ${agentLine(agent)}
   </section>
 
   <section class="statbar" aria-label="Site numbers">

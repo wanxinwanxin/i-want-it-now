@@ -369,6 +369,18 @@ export function createStore(db) {
       return rows.length;
     },
 
+    agentStats() {
+      return db
+        .prepare(
+          `SELECT
+            (SELECT count(*) FROM wants WHERE hidden = 0 AND agent_state = 'pending') AS queued,
+            (SELECT count(*) FROM wants WHERE hidden = 0 AND agent_state = 'working') AS working,
+            (SELECT count(*) FROM wants WHERE hidden = 0 AND agent_state IN ('done', 'needs_human')) AS answered,
+            (SELECT max(agent_at) FROM wants WHERE agent_state IN ('done', 'needs_human')) AS last_at`,
+        )
+        .get();
+    },
+
     // ---- Agent queue ----
 
     agentQueue(limit = 3) {
