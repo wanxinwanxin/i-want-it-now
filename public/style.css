@@ -6,8 +6,9 @@
   --muted: #6b655c;
   --line: #e6dfd3;
   --accent: #ff5a1f;
+  --accent-ink: #b93a0b;
   --accent-soft: #ffe7dc;
-  --on-accent: #ffffff;
+  --on-accent: #1b1a17;
   --green: #1a8a4a;
   --green-soft: #dcf3e5;
   --blue: #2457d6;
@@ -32,6 +33,7 @@
     --muted: #a49d92;
     --line: #322e28;
     --accent: #ff6a33;
+    --accent-ink: #ff8a5c;
     --accent-soft: #3a1f14;
     --on-accent: #12110f;
     --green: #4cc37f;
@@ -54,6 +56,7 @@
   --muted: #a49d92;
   --line: #322e28;
   --accent: #ff6a33;
+  --accent-ink: #ff8a5c;
   --accent-soft: #3a1f14;
   --on-accent: #12110f;
   --green: #4cc37f;
@@ -78,7 +81,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-a:hover { color: var(--accent); }
+a:hover { color: var(--accent-ink); }
 h1, h2, h3 { font-family: var(--display); line-height: 1.1; letter-spacing: -0.015em; margin: 0 0 0.5em; }
 h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800; }
 h2 { font-size: 22px; font-weight: 700; }
@@ -197,11 +200,11 @@ input:focus, textarea:focus { border-color: var(--ink); outline: none; }
 }
 .want.st-fulfilled { border-color: color-mix(in srgb, var(--green) 45%, var(--line)); }
 .wtext { display: block; text-decoration: none; font-weight: 650; font-size: 17px; line-height: 1.35; }
-.iw { color: var(--accent); font-weight: 800; font-family: var(--display); }
+.iw { color: var(--accent-ink); font-weight: 800; font-family: var(--display); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; color: var(--muted); font-size: 13px; }
 .meta a { color: var(--muted); }
 .chip { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; background: var(--surface-2); color: var(--muted); }
-.chip.st-open { background: var(--accent-soft); color: var(--accent); }
+.chip.st-open { background: var(--accent-soft); color: var(--accent-ink); }
 .chip.st-answered { background: var(--blue-soft); color: var(--blue); }
 .chip.st-fulfilled { background: var(--green-soft); color: var(--green); }
 .chip.agent { background: var(--violet-soft); color: var(--violet); }
@@ -234,7 +237,7 @@ input:focus, textarea:focus { border-color: var(--ink); outline: none; }
 .details { margin: 18px 0 0 96px; font-size: 17px; }
 .sourceline { margin: 10px 0 0 96px; color: var(--muted); font-size: 14px; }
 .donewhen { margin: 14px 0 0 96px; background: var(--surface); border: 1px dashed var(--ink); border-radius: 12px; padding: 12px 14px; }
-.donewhen b { color: var(--accent); margin-right: 4px; }
+.donewhen b { color: var(--accent-ink); margin-right: 4px; }
 .actions { display: flex; gap: 10px; align-items: center; margin: 18px 0 0 96px; flex-wrap: wrap; }
 .actions .report { margin-left: auto; }
 .fitbanner { margin: 22px 0 0; background: var(--green-soft); color: var(--green); border: 2px solid currentColor; border-radius: 14px; padding: 12px 16px; font-weight: 700; }
@@ -251,7 +254,7 @@ input:focus, textarea:focus { border-color: var(--ink); outline: none; }
 .host { color: var(--muted); font-size: 13px; font-weight: 500; font-family: var(--body); margin-left: 4px; }
 .akind { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 .akind.k-agent { color: var(--violet); }
-.akind.k-built { color: var(--accent); }
+.akind.k-built { color: var(--accent-ink); }
 .akind.k-existing { color: var(--blue); }
 .fitmark { color: var(--green); margin-left: 6px; }
 .answer:has(.k-agent) { border-left-color: var(--violet); }
@@ -347,7 +350,7 @@ form.inline { display: inline; }
 .foot p { margin: 6px 0 0; max-width: 340px; }
 .foot nav { display: grid; grid-template-columns: repeat(2, auto); gap: 6px 28px; }
 .foot nav a { color: var(--muted); text-decoration: none; }
-.foot nav a:hover { color: var(--accent); }
+.foot nav a:hover { color: var(--accent-ink); }
 
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; z-index: 20; }
 
