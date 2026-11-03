@@ -311,6 +311,7 @@ input:focus, textarea:focus { border-color: var(--ink); outline: none; }
 .madeactions { display: flex; gap: 8px; flex-wrap: wrap; }
 .frame { margin-top: 18px; border: 2px solid var(--ink); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); background: #fff; }
 .frame iframe { display: block; width: 100%; height: min(78vh, 900px); border: 0; }
+.frame + .fine { margin-top: 16px; }
 
 /* How + prose */
 .how { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px 24px 8px; }
