@@ -159,6 +159,7 @@ export function shelfCard(a) {
   const href = answerLink(a);
   const external = !a.made_slug;
   return html`<article class="shelf-card${a.is_fit ? ' fit' : ''}">
+    ${a.made_slug && a.has_thumb ? html`<a class="thumb" href="${href}" tabindex="-1" aria-hidden="true"><img src="/made/${a.made_slug}/thumb.jpg" alt="" loading="lazy" width="1200" height="630"></a>` : ''}
     <div class="akind k-${a.made_slug ? 'agent' : a.kind}">${a.made_slug ? KIND_LABEL.agent : KIND_LABEL[a.kind]}${a.is_fit ? html` <span class="fitmark">✓ fits exactly</span>` : ''}</div>
     <h3><a href="${href}" ${external ? raw('rel="nofollow ugc noopener" target="_blank"') : ''}>${a.title}</a></h3>
     ${external ? html`<div class="host">${hostOf(href)}</div>` : ''}
@@ -457,7 +458,7 @@ export function madeIndexPage({ items }) {
     </section>
     ${items.length
       ? html`<div class="shelf">${items.map(
-          (m) => html`<article class="shelf-card"><div class="akind k-agent">Made by the agent</div>
+          (m) => html`<article class="shelf-card">${m.has_thumb ? html`<a class="thumb" href="/made/${m.slug}" tabindex="-1" aria-hidden="true"><img src="/made/${m.slug}/thumb.jpg" alt="" loading="lazy" width="1200" height="630"></a>` : ''}<div class="akind k-agent">Made by the agent</div>
             <h3><a href="/made/${m.slug}">${m.title}</a></h3>${m.summary ? html`<p>${cut(m.summary, 160)}</p>` : ''}
             ${m.want_id ? html`<a class="for" href="/w/${m.want_id}/${m.want_slug}"><span class="iw">for</span> I want ${cut(m.want_text, 90)}</a>` : ''}</article>`,
         )}</div>`
@@ -466,6 +467,12 @@ export function madeIndexPage({ items }) {
 }
 
 export function madePage({ m }) {
+  let howto = [];
+  try {
+    howto = JSON.parse(m.howto || '[]');
+  } catch {
+    /* old rows */
+  }
   const body = html`<article class="madepage">
     <div class="crumbs"><a href="/made">Made by the agent</a> <span>/</span> ${m.title}</div>
     <div class="madehead">
@@ -484,6 +491,7 @@ export function madePage({ m }) {
       <iframe src="/made/${m.slug}/raw" title="${m.title}" sandbox="allow-scripts allow-forms allow-modals allow-downloads allow-popups" loading="lazy"></iframe>
     </div>
     <p class="fine">This page runs in a sandbox. It cannot see your data on this site. It was written by an AI agent, so check the result before you rely on it.</p>
+    ${howto.length ? html`<section class="howto"><h2>How to use ${m.title}</h2><ol>${howto.map((step) => html`<li>${step}</li>`)}</ol></section>` : ''}
   </article>`;
   return layout({
     title: `${m.title}: free online tool`,
@@ -491,6 +499,7 @@ export function madePage({ m }) {
     path: `/made/${m.slug}`,
     body,
     wide: true,
+    ogImage: m.has_thumb ? `${config.baseUrl}/made/${m.slug}/thumb.jpg` : null,
     jsonld: {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
@@ -503,6 +512,7 @@ export function madePage({ m }) {
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
       license: 'https://opensource.org/licenses/MIT',
       dateCreated: m.created_at,
+      ...(m.has_thumb ? { screenshot: `${config.baseUrl}/made/${m.slug}/thumb.jpg` } : {}),
     },
   });
 }

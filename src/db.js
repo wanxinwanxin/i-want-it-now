@@ -136,5 +136,14 @@ export function openDb(file) {
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+// Add columns that later versions need. Each step runs only when the column is missing.
+function migrate(db) {
+  const cols = (table) => new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));
+  const made = cols('made');
+  if (!made.has('thumb')) db.exec(`ALTER TABLE made ADD COLUMN thumb BLOB`);
+  if (!made.has('howto')) db.exec(`ALTER TABLE made ADD COLUMN howto TEXT NOT NULL DEFAULT '[]'`);
 }

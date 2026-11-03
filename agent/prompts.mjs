@@ -66,7 +66,7 @@ Hard constraints (the page is served in a sandboxed iframe with an opaque origin
 
 Reply in exactly this format, with nothing else:
 \`\`\`json
-{"title": "Short tool name (2-5 words)", "summary": "One sentence: what it does.", "note": "One or two sentences for the wisher: how it meets the want and any limit."}
+{"title": "Short tool name (2-5 words)", "summary": "One sentence: what it does.", "note": "One or two sentences for the wisher: how it meets the want and any limit.", "howto": ["3 to 5 short steps that tell a new visitor how to use the tool"]}
 \`\`\`
 \`\`\`html
 <!doctype html>

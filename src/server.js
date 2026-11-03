@@ -63,6 +63,13 @@ function publicAnswer(a) {
   };
 }
 
+// A thumbnail is a base64 JPEG from the agent. Check the JPEG magic bytes and the size.
+function decodeThumb(b64) {
+  if (typeof b64 !== 'string' || b64.length > 560_000) return null;
+  const buf = Buffer.from(b64, 'base64');
+  return buf.length > 1000 && buf[0] === 0xff && buf[1] === 0xd8 ? buf : null;
+}
+
 export function createApp({ store }) {
   const app = express();
   app.disable('x-powered-by');
@@ -352,6 +359,12 @@ export function createApp({ store }) {
     res.type('html').send(m.html);
   });
 
+  app.get('/made/:slug/thumb.jpg', (req, res) => {
+    const thumb = store.getMadeThumb(req.params.slug);
+    if (!thumb) return res.status(404).type('text').send('Not found');
+    res.set('Cache-Control', 'public, max-age=86400').type('image/jpeg').send(thumb);
+  });
+
   app.get('/made/:slug/source', (req, res) => {
     const m = store.getMade(req.params.slug);
     if (!m) return res.status(404).type('text').send('Not found');
@@ -415,6 +428,19 @@ export function createApp({ store }) {
   });
 
   app.get('/api/stats', cors, (req, res) => res.json(store.stats()));
+  app.get('/api/made', cors, (req, res) =>
+    res.json({
+      made: store.listMade({ limit: 500 }).map((m) => ({
+        slug: m.slug,
+        title: m.title,
+        summary: m.summary,
+        url: `${config.baseUrl}/made/${m.slug}`,
+        thumb: m.has_thumb ? `${config.baseUrl}/made/${m.slug}/thumb.jpg` : null,
+        want_id: m.want_id,
+        created_at: m.created_at,
+      })),
+    }),
+  );
   app.get('/api/topics', cors, (req, res) => res.json({ topics: store.topicStats().map(({ words, ...t }) => t) }));
 
   // ---------- Agent API (bearer token) ----------
@@ -464,7 +490,14 @@ export function createApp({ store }) {
     let made = null;
     if (body.made && typeof body.made.html === 'string' && body.made.html.length > 200) {
       const title = cleanLine(body.made.title, 80) || 'Untitled tool';
-      made = store.addMade({ want_id: w.id, title, summary: cleanLine(body.made.summary, 300), html: body.made.html.slice(0, 2_000_000) });
+      made = store.addMade({
+        want_id: w.id,
+        title,
+        summary: cleanLine(body.made.summary, 300),
+        html: body.made.html.slice(0, 2_000_000),
+        howto: (Array.isArray(body.made.howto) ? body.made.howto : []).slice(0, 8).map((x) => cleanLine(x, 240)).filter(Boolean),
+        thumb: decodeThumb(body.made.thumb_jpg),
+      });
       created.push(
         store.addAnswer({
           want_id: w.id,
@@ -485,6 +518,12 @@ export function createApp({ store }) {
     store.agentFinish(w.id, state, cleanLine(body.note, 500));
     seo.indexNow(views.wantUrl(w));
     res.json({ ok: true, answers: created, made });
+  });
+
+  app.post('/api/agent/made/:slug/thumb', agentAuth, bigBody, (req, res) => {
+    const thumb = decodeThumb(req.body && req.body.thumb_jpg);
+    if (!thumb) return res.status(400).json({ error: 'thumb_jpg must be a base64 JPEG under 400 KB' });
+    res.json({ ok: store.setMadeThumb(req.params.slug, thumb) });
   });
 
   // The agent imports wants it found in public posts. Each import keeps the link to its source.

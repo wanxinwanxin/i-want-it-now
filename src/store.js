@@ -29,7 +29,7 @@ export function createStore(db) {
     insertAnswer: db.prepare(`INSERT INTO answers (want_id, kind, title, url, repo_url, note, author, by_agent, is_free, is_open_source, made_id, creator, ip)
       VALUES (@want_id, @kind, @title, @url, @repo_url, @note, @author, @by_agent, @is_free, @is_open_source, @made_id, @creator, @ip)`),
     getAnswer: db.prepare(`SELECT * FROM answers WHERE id = ?`),
-    answersFor: db.prepare(`SELECT a.*, m.slug AS made_slug FROM answers a LEFT JOIN made m ON m.id = a.made_id
+    answersFor: db.prepare(`SELECT a.*, m.slug AS made_slug, (m.thumb IS NOT NULL) AS has_thumb FROM answers a LEFT JOIN made m ON m.id = a.made_id
       WHERE a.want_id = ? AND a.hidden = 0 ORDER BY (a.id = (SELECT fulfilled_answer_id FROM wants WHERE id = a.want_id)) DESC, (a.works - a.nofit) DESC, a.created_at ASC`),
     countAnswers: db.prepare(`UPDATE wants SET answer_count = (SELECT count(*) FROM answers WHERE want_id = @id AND hidden = 0) WHERE id = @id`),
     getVote: db.prepare(`SELECT value FROM answer_votes WHERE answer_id = ? AND voter = ?`),
@@ -41,8 +41,9 @@ export function createStore(db) {
       nofit = (SELECT count(*) FROM answer_votes WHERE answer_id = @id AND value = -1) WHERE id = @id`),
     myVotes: db.prepare(`SELECT v.answer_id, v.value FROM answer_votes v JOIN answers a ON a.id = v.answer_id WHERE a.want_id = ? AND v.voter = ?`),
     addReport: db.prepare(`INSERT OR IGNORE INTO reports (kind, target_id, voter) VALUES (?, ?, ?)`),
-    insertMade: db.prepare(`INSERT INTO made (slug, want_id, title, summary, html) VALUES (@slug, @want_id, @title, @summary, @html)`),
-    getMade: db.prepare(`SELECT m.*, w.text AS want_text, w.slug AS want_slug FROM made m LEFT JOIN wants w ON w.id = m.want_id WHERE m.slug = ? AND m.hidden = 0`),
+    insertMade: db.prepare(`INSERT INTO made (slug, want_id, title, summary, html, howto, thumb) VALUES (@slug, @want_id, @title, @summary, @html, @howto, @thumb)`),
+    getMade: db.prepare(`SELECT m.id, m.slug, m.want_id, m.title, m.summary, m.html, m.howto, m.created_at, (m.thumb IS NOT NULL) AS has_thumb,
+      w.text AS want_text, w.slug AS want_slug FROM made m LEFT JOIN wants w ON w.id = m.want_id WHERE m.slug = ? AND m.hidden = 0`),
     madeSlugTaken: db.prepare(`SELECT 1 FROM made WHERE slug = ?`),
   };
 
@@ -272,11 +273,20 @@ export function createStore(db) {
       }
     },
 
-    addMade({ want_id, title, summary, html }) {
+    addMade({ want_id, title, summary, html, howto = [], thumb = null }) {
       let slug = slugify(title, 50);
       for (let i = 2; stmt.madeSlugTaken.get(slug); i++) slug = `${slugify(title, 46)}-${i}`;
-      const info = stmt.insertMade.run({ slug, want_id, title, summary, html });
+      const info = stmt.insertMade.run({ slug, want_id, title, summary, html, howto: JSON.stringify(howto), thumb });
       return { id: Number(info.lastInsertRowid), slug };
+    },
+
+    setMadeThumb(slug, thumb) {
+      return db.prepare(`UPDATE made SET thumb = ? WHERE slug = ?`).run(thumb, slug).changes === 1;
+    },
+
+    getMadeThumb(slug) {
+      const row = db.prepare(`SELECT thumb FROM made WHERE slug = ? AND hidden = 0`).get(slug);
+      return row && row.thumb ? row.thumb : null;
     },
 
     getMade(slug) {
@@ -285,7 +295,7 @@ export function createStore(db) {
 
     listMade({ limit = 50 } = {}) {
       return db
-        .prepare(`SELECT m.id, m.slug, m.title, m.summary, m.created_at, m.want_id, w.text AS want_text, w.slug AS want_slug
+        .prepare(`SELECT m.id, m.slug, m.title, m.summary, m.created_at, m.want_id, (m.thumb IS NOT NULL) AS has_thumb, w.text AS want_text, w.slug AS want_slug
           FROM made m LEFT JOIN wants w ON w.id = m.want_id WHERE m.hidden = 0 ORDER BY m.created_at DESC LIMIT ?`)
         .all(limit);
     },
@@ -301,7 +311,7 @@ export function createStore(db) {
       else if (filter === 'fits') where.push('w.fulfilled_answer_id = a.id');
       return db
         .prepare(
-          `SELECT a.*, m.slug AS made_slug, w.text AS want_text, w.slug AS want_slug, w.me_too AS want_me_too,
+          `SELECT a.*, m.slug AS made_slug, (m.thumb IS NOT NULL) AS has_thumb, w.text AS want_text, w.slug AS want_slug, w.me_too AS want_me_too,
              (w.fulfilled_answer_id = a.id) AS is_fit
            FROM answers a JOIN wants w ON w.id = a.want_id LEFT JOIN made m ON m.id = a.made_id
            WHERE ${where.join(' AND ')} ORDER BY a.created_at DESC LIMIT ? OFFSET ?`,

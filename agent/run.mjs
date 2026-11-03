@@ -7,6 +7,7 @@
 //   node agent/run.mjs --scan     scan Hacker News once, then stop
 //   node agent/run.mjs --dry      do the work, but post nothing to the site
 //   node agent/run.mjs --thread <hn-id> [max]   import wants from one HN thread
+//   node agent/run.mjs --thumbs   add screenshots to agent pages that have none
 //
 // Safety: each Claude call runs with --restricted. The research step has only WebSearch and WebFetch.
 // The build step and the triage step have no tools. No step can read files or run commands on this machine.
@@ -235,6 +236,33 @@ async function smokeTest(html) {
   return { errors: [...new Set(errors)].slice(0, 10) };
 }
 
+// A 1200x630 JPEG of the page, for the shelf and for social previews.
+async function thumbnail(html) {
+  let chromium;
+  try {
+    ({ chromium } = await import('playwright-core'));
+  } catch {
+    return null;
+  }
+  const exe = findChromium();
+  if (!exe) return null;
+  const browser = await chromium.launch({ executablePath: exe });
+  try {
+    // 800x420 at 1.5x gives a 1200x630 image with larger content.
+    const page = await browser.newPage({ viewport: { width: 800, height: 420 }, deviceScaleFactor: 1.5 });
+    await page.setContent(`<!doctype html><html><body style="margin:0;overflow:hidden"><iframe id="f" sandbox="allow-scripts allow-forms allow-modals allow-downloads allow-popups" style="width:800px;height:420px;border:0;display:block"></iframe></body></html>`);
+    await page.$eval('#f', (el, src) => (el.srcdoc = src), html);
+    await page.waitForTimeout(3000);
+    const buf = await page.screenshot({ type: 'jpeg', quality: 78 });
+    return buf.length < 400_000 ? buf.toString('base64') : null;
+  } catch (err) {
+    log(`thumbnail failed: ${err.message}`);
+    return null;
+  } finally {
+    await browser.close();
+  }
+}
+
 // ---------- Work on one want ----------
 
 async function work(w, state) {
@@ -290,7 +318,15 @@ async function work(w, state) {
           }
         }
         if (test.errors.length) log(`want #${w.id}: still has errors after fix, not posting the page: ${test.errors.join(' | ')}`);
-        else made = { title: meta.title || 'Untitled tool', summary: meta.summary || '', note: meta.note || meta.summary || '', html };
+        else
+          made = {
+            title: meta.title || 'Untitled tool',
+            summary: meta.summary || '',
+            note: meta.note || meta.summary || '',
+            howto: Array.isArray(meta.howto) ? meta.howto : [],
+            html,
+            thumb_jpg: await thumbnail(html),
+          };
         if (test.skipped) log(`want #${w.id}: smoke test skipped: ${test.skipped}`);
       } else log(`want #${w.id}: build returned no HTML`);
     } catch (err) {
@@ -457,6 +493,16 @@ async function tick() {
 }
 
 log(`agent start: base=${BASE} dry=${DRY} limits=${JSON.stringify(CFG)}`);
+if (args.has('--thumbs')) {
+  const { made } = await api('GET', '/api/made');
+  for (const m of made.filter((x) => !x.thumb)) {
+    const html = await (await fetch(`${BASE}/made/${m.slug}/raw`)).text();
+    const thumb = await thumbnail(html);
+    if (thumb) await api('POST', `/api/agent/made/${m.slug}/thumb`, { thumb_jpg: thumb });
+    log(`thumb ${m.slug}: ${thumb ? 'ok' : 'failed'}`);
+  }
+  process.exit(0);
+}
 const threadArg = process.argv.indexOf('--thread');
 if (threadArg > 0) {
   const state = loadState();
