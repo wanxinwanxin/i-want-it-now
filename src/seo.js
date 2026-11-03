@@ -125,11 +125,12 @@ async function flushIndexNow() {
   queue.clear();
   if (!urlList.length) return;
   try {
-    await fetch('https://api.indexnow.org/indexnow', {
+    const res = await fetch('https://api.indexnow.org/indexnow', {
       method: 'POST',
       headers: { 'content-type': 'application/json; charset=utf-8' },
       body: JSON.stringify({ host: new URL(config.baseUrl).host, key: config.indexNowKey, keyLocation: `${config.baseUrl}/${config.indexNowKey}.txt`, urlList }),
     });
+    console.log(`indexnow ${res.status} for ${urlList.length} urls`);
   } catch (err) {
     console.error('indexnow failed', err.message);
   }

@@ -182,6 +182,7 @@ function answerCard(a, w, { myVote = 0, isCreator = false } = {}) {
     <div class="akind k-${kind}">${KIND_LABEL[kind]}${fit ? html` <span class="fitmark">✓ fits exactly</span>` : ''}</div>
     <h3><a href="${href}" ${external ? raw('rel="nofollow ugc noopener" target="_blank"') : ''}>${a.title}</a>
       ${external ? html`<span class="host">${hostOf(href)}</span>` : ''}</h3>
+    ${a.made_slug && a.has_thumb ? html`<a class="athumb" href="/made/${a.made_slug}" tabindex="-1" aria-hidden="true"><img src="/made/${a.made_slug}/thumb.jpg" alt="" loading="lazy" width="1200" height="630"></a>` : ''}
     ${a.note ? textBlock(a.note) : ''}
     <div class="alinks">
       ${a.made_slug ? html`<a class="btn small" href="/made/${a.made_slug}">Open it</a>` : a.url ? html`<a class="btn small" href="${a.url}" rel="nofollow ugc noopener" target="_blank">Open</a>` : ''}
