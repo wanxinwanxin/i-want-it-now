@@ -6,6 +6,7 @@
 //   node agent/run.mjs --once     answer one queued want, then stop
 //   node agent/run.mjs --scan     scan Hacker News once, then stop
 //   node agent/run.mjs --dry      do the work, but post nothing to the site
+//   node agent/run.mjs --thread <hn-id> [max]   import wants from one HN thread
 //
 // Safety: each Claude call runs with --restricted. The research step has only WebSearch and WebFetch.
 // The build step and the triage step have no tools. No step can read files or run commands on this machine.
@@ -362,6 +363,53 @@ async function scanHn(state) {
   }
 }
 
+// ---------- Import wants from one "what do you wish existed" thread ----------
+
+async function importThread(id, state, maxImports) {
+  const item = await (await fetch(`https://hn.algolia.com/api/v1/items/${id}`)).json();
+  const seen = new Set(state.seenHn);
+  const candidates = (item.children || [])
+    .filter((c) => c.text && c.author && !seen.has(String(c.id)))
+    .map((c) => ({ id: String(c.id), author: c.author, text: stripHtml(c.text), points: c.points || 0 }))
+    .filter((c) => c.text.length >= 40 && c.text.length <= 3000);
+  log(`thread ${id} "${item.title}": ${candidates.length} new top-level comments`);
+  let imported = 0;
+  for (let i = 0; i < candidates.length && imported < maxImports; i += 40) {
+    const batch = candidates.slice(i, i + 40);
+    state.seenHn.push(...batch.map((c) => c.id));
+    let picks = [];
+    try {
+      const r = await claude(triagePrompt(batch, 8), { tools: '', model: CFG.modelTriage, timeoutMs: 6 * 60_000, tag: 'triage' });
+      state.cost += r.cost;
+      picks = extractJson(r.text) || [];
+    } catch (err) {
+      log(`thread ${id}: triage failed: ${err.message}`);
+      continue;
+    }
+    const byId = new Map(batch.map((c) => [c.id, c]));
+    for (const p of (Array.isArray(picks) ? picks : []).filter((p) => Number(p.quality) >= 7)) {
+      if (imported >= maxImports) break;
+      const c = byId.get(String(p.id));
+      if (!c || !p.want) continue;
+      try {
+        const r = await api('POST', '/api/agent/wants', {
+          text: p.want,
+          details: `${p.details || ''}\n\nThe agent found this want in a public Hacker News comment by ${c.author}, in the thread "${item.title}". The link to the original comment is below.`.trim(),
+          done_when: p.done_when || '',
+          author: `${c.author} (HN)`,
+          source: 'hn',
+          source_url: `https://news.ycombinator.com/item?id=${c.id}`,
+        });
+        if (!r.duplicate) imported++;
+        log(`thread ${id}: imported ${c.id} -> #${r.id}: ${p.want}`);
+      } catch (err) {
+        log(`thread ${id}: import failed: ${err.message}`);
+      }
+    }
+  }
+  return imported;
+}
+
 // ---------- Main loop ----------
 
 async function tick() {
@@ -391,6 +439,15 @@ async function tick() {
 }
 
 log(`agent start: base=${BASE} dry=${DRY} limits=${JSON.stringify(CFG)}`);
+const threadArg = process.argv.indexOf('--thread');
+if (threadArg > 0) {
+  const state = loadState();
+  const max = Number(process.argv[threadArg + 2]) || 10;
+  const n = await importThread(process.argv[threadArg + 1], state, max);
+  saveState(state);
+  log(`thread import done: ${n} wants`);
+  process.exit(0);
+}
 for (;;) {
   const keepGoing = await tick();
   if (!keepGoing || args.has('--once') || args.has('--scan')) break;
