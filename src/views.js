@@ -243,7 +243,13 @@ function agentLine(agent, { logLink = true } = {}) {
   return html`<p class="agentline">${parts.map((p, i) => html`${i ? ' · ' : ''}${p}`)}${logLink ? html` · <a href="/log">Build log →</a>` : ''}</p>`;
 }
 
-export function homePage({ stats, agent, fresh, top, shelf, mine }) {
+function madeCard(m) {
+  return html`<article class="shelf-card">${m.has_thumb ? html`<a class="thumb" href="/made/${m.slug}" tabindex="-1" aria-hidden="true"><img src="/made/${m.slug}/thumb.jpg" alt="" loading="lazy" width="1200" height="630"></a>` : ''}<div class="akind k-agent">Made by the agent</div>
+    <h3><a href="/made/${m.slug}">${m.title}</a></h3>${m.summary ? html`<p>${cut(m.summary, 160)}</p>` : ''}
+    ${m.want_id ? html`<a class="for" href="/w/${m.want_id}/${m.want_slug}"><span class="iw">for</span> I want ${cut(m.want_text, 90)}</a>` : ''}</article>`;
+}
+
+export function homePage({ stats, agent, fresh, top, shelf, made = [], mine }) {
   const body = html`
   <section class="hero">
     <h1>Say exactly what you want.<br><em>Get it now.</em></h1>
@@ -265,10 +271,17 @@ export function homePage({ stats, agent, fresh, top, shelf, mine }) {
       ${wantList(fresh, mine, 'No wants yet. Be the first.')}
     </section>
     <section>
-      <div class="sechead"><h2>Most wanted, still open</h2><a href="/build">Build one →</a></div>
-      ${wantList(top, mine, 'All open wants are in the list on the left.')}
+      <div class="sechead"><h2>Most wanted, not yet a fit</h2><a href="/build">Build one →</a></div>
+      ${wantList(top, mine, 'Every want has an answer that fits. Post a new one.')}
     </section>
   </div>
+
+  ${made.length
+    ? html`<section>
+    <div class="sechead"><h2>Made by the agent</h2><a href="/made">All ${stats.made} tools →</a></div>
+    <div class="shelf">${made.map(madeCard)}</div>
+  </section>`
+    : ''}
 
   <section>
     <div class="sechead"><h2>Just answered</h2><a href="/shelf">The shelf →</a></div>
@@ -506,13 +519,7 @@ export function madeIndexPage({ items }) {
       <h1>Made by the agent</h1>
       <p class="lede small">Small, free tools that the house agent built for a want. Each one is a single web page. The source is open (MIT).</p>
     </section>
-    ${items.length
-      ? html`<div class="shelf">${items.map(
-          (m) => html`<article class="shelf-card">${m.has_thumb ? html`<a class="thumb" href="/made/${m.slug}" tabindex="-1" aria-hidden="true"><img src="/made/${m.slug}/thumb.jpg" alt="" loading="lazy" width="1200" height="630"></a>` : ''}<div class="akind k-agent">Made by the agent</div>
-            <h3><a href="/made/${m.slug}">${m.title}</a></h3>${m.summary ? html`<p>${cut(m.summary, 160)}</p>` : ''}
-            ${m.want_id ? html`<a class="for" href="/w/${m.want_id}/${m.want_slug}"><span class="iw">for</span> I want ${cut(m.want_text, 90)}</a>` : ''}</article>`,
-        )}</div>`
-      : html`<p class="empty">The agent has not made anything yet.</p>`}`;
+    ${items.length ? html`<div class="shelf">${items.map(madeCard)}</div>` : html`<p class="empty">The agent has not made anything yet.</p>`}`;
   return layout({ title: 'Free tools made by the agent', description: 'Free single-page tools that an AI agent built for real wants. Open source.', path: '/made', body, wide: true });
 }
 

@@ -201,9 +201,10 @@ export function createApp({ store }) {
   app.get('/', (req, res) => {
     const fresh = store.listWants({ sort: 'new', limit: 8 });
     const freshIds = new Set(fresh.map((w) => w.id));
-    const top = store.listWants({ sort: 'top', status: 'open', limit: 16 }).filter((w) => !freshIds.has(w.id)).slice(0, 8);
+    const top = store.listWants({ sort: 'top', status: 'unfulfilled', limit: 16 }).filter((w) => !freshIds.has(w.id)).slice(0, 8);
     const shelf = store.shelf({ limit: 6 });
-    send(res, views.homePage({ stats: store.stats(), agent: store.agentStats(), fresh, top, shelf, mine: myMeToos([...fresh, ...top], req.voter) }));
+    const made = store.listMade({ limit: 4 });
+    send(res, views.homePage({ stats: store.stats(), agent: store.agentStats(), fresh, top, shelf, made, mine: myMeToos([...fresh, ...top], req.voter) }));
   });
 
   app.get('/wants', (req, res) => {
